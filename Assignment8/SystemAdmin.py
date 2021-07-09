@@ -78,9 +78,23 @@ def CheckUsers():
 
 
 def AddAdviser():
-    username = input("Enter an username: ").lower()
-    password = input("Enter a password: ")
-
+    print("-----------------------------------\n"
+          "|           Add Adviser           |\n"
+          "-----------------------------------\n"
+          "Create an account for a new Adviser.\n"
+          "Username must be between 5 & 20 Characters and must be started with a letter.\n"
+          "Password must be between 8 & 30 Characters and must contain at least one lowercase \n"
+          "letter, one uppercase letter, one digit, and one special character.\n")
+    
+    loop = True
+    while loop:
+        username = input("Enter an username: ").lower()
+        password = input("Enter a password: ")
+        if Functions.CheckUsername(username) and Functions.CheckPassword(password):
+            loop = False
+    print("User should be created")
+    
+    #add user to database
 
 def ModifyAdviser():
     return
