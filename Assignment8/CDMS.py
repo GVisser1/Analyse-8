@@ -9,15 +9,14 @@ cur = con.cursor()
 
 def SignIn():
     global currentUser
-    print(Functions.Decrypt("ehzmwiv") + "-" + Functions.Decrypt("Ehzmwiv!67"))
     username = input("Enter your username: ").lower()
     password = input("Enter your password: ")
     for row in DbFunctions.GetAllAccounts():
         if username == Functions.Decrypt(row[1]) and password == Functions.Decrypt(row[2]):
-            print("Signed in successfully\n")
+            print("\nSigned in successfully\n")
             currentUser = row
             CheckAccessLevel()
-    print("Username and/or password is incorrect\n")
+    print("\nUsername and/or password is incorrect\n")
     currentUser = -1
     SignIn()
 
@@ -79,15 +78,15 @@ class Adviser:
     @staticmethod
     def AddClient():
         DbFunctions.AddClient()
+        print("\nClient has been added!\n")
         CheckAccessLevel()
 
     @staticmethod
     def RetrieveClientInfo():
         while True:
-            fullName = input("Enter the full name of the client whose information you want to retrieve: ")
+            fullName = input("\nEnter the full name of the client whose information you want to retrieve: ")
             allClients = DbFunctions.GetClients(fullName)
             if len(allClients) > 0:
-                print(f"{allClients}\n")
                 print(f"-------------------------------------\n"
                       f"Results for clients with the full name: {fullName}\n")
                 for row in allClients:
@@ -95,8 +94,8 @@ class Adviser:
                           f"Street & house number: {Functions.Decrypt(row[2])}, {Functions.Decrypt(row[3])}\n"
                           f"Zip code & city: {Functions.Decrypt(row[4])}, {Functions.Decrypt(row[5])}\n"
                           f"Email Address: {Functions.Decrypt(row[6])}\n"
-                          f"Phone Number: +31-6-{Functions.Decrypt(row[7])}\n"
-                          f"-------------------------------------\n")
+                          f"Phone Number: {Functions.Decrypt(row[7])}\n"
+                          f"\n-------------------------------------\n")
                 break
             else:
                 print(f"\nNo clients have been found with the full name: {fullName}!\n")
@@ -105,13 +104,13 @@ class Adviser:
     @staticmethod
     def ModifyClient():
         while True:
-            oldEmail = input("\nEnter the emailaddress of the client you want to modify: ")
-            oldPhoneNumber = input("\nEnter the phone number of the client you want to modify: ")
+            oldEmail = input("\nEnter the email address of the client you want to modify: ")
+            oldPhoneNumber = "+31-6-" + input("Enter a phone number: +31-6-")
             if DbFunctions.ModifyClient(oldEmail, oldPhoneNumber):
-                print("Client has been modified")
+                print("\nClient has been modified!\n")
                 break
             else:
-                print("No client can be found with the given emailaddress and/or phone number!\n")
+                print("No client can be found with the given email address and/or phone number!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -141,7 +140,7 @@ class SystemAdmin:
               "6. Update password\n"
               "7. Exit\n")
         option = input("Put in your choice: ")
-        while option not in ['1', '2', '3', '4', '5', '6']:
+        while option not in ['1', '2', '3', '4', '5', '6', '7']:
             option = input("Put in your choice: ")
         if option == '1':
             SystemAdmin.CheckUsers()
@@ -154,18 +153,19 @@ class SystemAdmin:
         elif option == '5':
             SystemAdmin.ViewLogFiles()
         elif option == '6':
+            SystemAdmin.UpdatePassword()
+        elif option == '7':
             exit()
 
     @staticmethod
     def ClientOptions():
-        print("1. Define and add client\n"
+        print("\n1. Define and add client\n"
               "2. Retrieve client information\n"
               "3. Modify a client's account\n"
               "4. Delete client\n"
-              "5. Reset client's password\n"
-              "6. Return\n")
+              "5. Return\n")
         option = input("Put in your choice: ")
-        while option not in ['1', '2', '3', '4', '5', '6']:
+        while option not in ['1', '2', '3', '4', '5']:
             option = input("Put in your choice: ")
         if option == '1':
             Adviser.AddClient()
@@ -176,13 +176,11 @@ class SystemAdmin:
         elif option == '4':
             SystemAdmin.DeleteClient()
         elif option == '5':
-            Adviser.UpdatePassword()
-        elif option == '6':
             CheckAccessLevel()
 
     @staticmethod
     def AdviserOptions():
-        print("1. Define and add adviser\n"
+        print("\n1. Define and add adviser\n"
               "2. Modify an adviser's account\n"
               "3. Delete adviser\n"
               "4. Reset adviser's password\n"
@@ -214,18 +212,15 @@ class SystemAdmin:
 
     @staticmethod
     def AddAdviser():
-        print("-----------------------------------\n"
-              "|           Add Adviser           |\n"
-              "-----------------------------------\n"
-              "Create an account for a new Adviser.\n"
+        print("\nCreate an account for a new Adviser.\n"
               "Username must be between 5 & 20 Characters and must be started with a letter.\n"
-              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, "
+              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, \n"
               "one uppercase letter, one digit, and one special character.\n")
 
         while True:
             if DbFunctions.AddAccount("Adviser"):
                 break
-        print("Adviser has been added\n")
+        print("\nAdviser has been added!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -244,10 +239,10 @@ class SystemAdmin:
         while True:
             username = input("\nEnter the username of the adviser that you want to delete: ")
             if DbFunctions.DeleteAccount(username, "Adviser"):
-                print("Adviser has been deleted!\n")
+                print("\nAdviser has been deleted!\n")
                 break
             else:
-                print("No adviser can be found with the given username\n")
+                print("\nNo adviser can be found with the given username!\n")
                 ReturnToMenu()
         CheckAccessLevel()
 
@@ -256,23 +251,23 @@ class SystemAdmin:
         while True:
             username = input("\nEnter the username of the adviser whose password you want to reset: ")
             if DbFunctions.ResetPassword(username, "Adviser"):
-                print("Adviser's password has been changed!\n")
+                print("\nAdviser's password has been changed!\n")
                 break
             else:
-                print("No adviser can be found with the given username!\n")
+                print("\nNo adviser can be found with the given username!\n")
         CheckAccessLevel()
 
     @staticmethod
     def DeleteClient():
         while True:
             email = input("\nEnter the email of the client that you want to delete: ")
-            phoneNumber = input("\nEnter the phone number of the client that you want to delete: ")
+            phoneNumber = "+31-6-" + input("Enter the phone number of the client that you want to delete: +31-6-")
             if DbFunctions.DeleteClient(email, phoneNumber):
-                print("Client has been deleted!\n")
+                print("\nClient has been deleted!\n")
                 break
             else:
-                print("No client can be found with the given email and/or phone number!\n")
-            CheckAccessLevel()
+                print("\nNo client can be found with the given email and/or phone number!\n")
+        CheckAccessLevel()
 
     @staticmethod
     def CreateBackup():
@@ -333,7 +328,7 @@ class SuperAdmin:
 
     @staticmethod
     def AdminOptions():
-        print("1. Define and add admin\n"
+        print("\n1. Define and add admin\n"
               "2. Modify an admin's account\n"
               "3. Delete admin\n"
               "4. Reset admin's password\n"
@@ -354,18 +349,15 @@ class SuperAdmin:
 
     @staticmethod
     def AddAdmin():
-        print("-----------------------------------\n"
-              "|           Add Admin           |\n"
-              "-----------------------------------\n"
-              "Create an account for a new Admin.\n"
+        print("\nCreate an account for a new Admin.\n"
               "Username must be between 5 & 20 Characters and must be started with a letter.\n"
-              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, "
+              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, \n"
               "one uppercase letter, one digit, and one special character.\n")
 
         while True:
             if DbFunctions.AddAccount("SystemAdmin"):
                 break
-        print("Admin has been added\n")
+        print("\nAdmin has been added!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -373,21 +365,21 @@ class SuperAdmin:
         while True:
             username = input("\nEnter the username of the admin whose account you want to modify: ")
             if DbFunctions.ModifyAccount(username, "SystemAdmin"):
-                print("Admin's account has been modified")
+                print("\nAdmin's account has been modified!\n")
                 break
             else:
-                print("No admin can be found with the given username!\n")
+                print("\nNo admin can be found with the given username!\n")
         CheckAccessLevel()
 
     @staticmethod
     def DeleteAdmin():
         while True:
             username = input("\nEnter the username of the admin that you want to delete: ")
-            if DbFunctions.DeleteAccount(username, "Admin"):
-                print("Admin has been deleted!\n")
+            if DbFunctions.DeleteAccount(username, "SystemAdmin"):
+                print("\nAdmin has been deleted!\n")
                 break
             else:
-                print("No admin can be found with the given username!\n")
+                print("\nNo admin can be found with the given username!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -395,10 +387,10 @@ class SuperAdmin:
         while True:
             username = input("\nEnter the username of the admin whose password you want to reset: ")
             if DbFunctions.ResetPassword(username, "SystemAdmin"):
-                print("Admin's password has been changed!\n")
+                print("\nAdmin's password has been changed!\n")
                 break
             else:
-                print("No admin can be found with the given username!\n")
+                print("\nNo admin can be found with the given username!\n")
         CheckAccessLevel()
 
 
@@ -479,7 +471,7 @@ class DbFunctions:
             city = "Breda"
         elif option == '10':
             city = "Nijmegen"
-        emailAddress = input("Enter a emailaddress: ")
+        emailAddress = input("Enter a email address: ")
         phoneNumber = "+31-6-" + input("Enter a phone number: +31-6-")
         DbFunctions.ExecQuery(f"INSERT INTO Clients (FullName, StreetName, HouseNumber, ZipCode, City, EmailAddress, PhoneNumber) "
                               f"VALUES ('{Functions.Encrypt(fullName)}', '{Functions.Encrypt(streetName)}', '{Functions.Encrypt(houseNumber)}', "
@@ -498,7 +490,8 @@ class DbFunctions:
                 if Functions.CheckUsername(username) and Functions.CheckPassword(password):
                     DbFunctions.ExecQuery(
                         f"UPDATE Accounts SET Username = '{Functions.Encrypt(username)}', Password = '{Functions.Encrypt(password)}', "
-                        f"FirstName = '{firstName}', LastName = '{lastName}' WHERE Username = '{oldUsername}'")
+                        f"FirstName = '{Functions.Encrypt(firstName)}', LastName = '{Functions.Encrypt(lastName)}' "
+                        f"WHERE Username = '{Functions.Encrypt(oldUsername)}'")
                     return True
                 return False
         else:
@@ -506,8 +499,9 @@ class DbFunctions:
 
     @staticmethod
     def ModifyClient(oldEmail, oldPhoneNumber):
-        for row in DbFunctions.GetAllAccounts():
-            if row[7] == Functions.Encrypt(oldEmail) and row[8] == Functions.Encrypt(oldPhoneNumber):
+
+        for row in DbFunctions.GetAllClients():
+            if row[6] == Functions.Encrypt(oldEmail) and row[7] == Functions.Encrypt(oldPhoneNumber):
                 fullName = input("Enter a (new) full name: ")
                 streetName = input("Enter a (new) street name: ")
                 houseNumber = input("Enter a (new) house number: ")
@@ -547,7 +541,7 @@ class DbFunctions:
                     city = "Breda"
                 elif option == '10':
                     city = "Nijmegen"
-                emailAddress = input("Enter a (new) emailaddress: ")
+                emailAddress = input("Enter a (new) email address: ")
                 phoneNumber = "+31-6-" + input("Enter a (new) phone number: +31-6-")
                 DbFunctions.ExecQuery(
                     f"UPDATE Clients SET FullName = '{Functions.Encrypt(fullName)}', StreetName = '{Functions.Encrypt(streetName)}', "
@@ -570,7 +564,7 @@ class DbFunctions:
     @staticmethod
     def DeleteClient(email, phoneNumber):
         for row in DbFunctions.GetAllClients():
-            if row[7] == Functions.Encrypt(email) and row[8] == Functions.Encrypt(phoneNumber):
+            if row[6] == Functions.Encrypt(email) and row[7] == Functions.Encrypt(phoneNumber):
                 DbFunctions.ExecQuery(f"DELETE FROM Clients WHERE EmailAddress = '{Functions.Encrypt(email)}' "
                                       f"AND PhoneNumber = '{Functions.Encrypt(phoneNumber)}'")
                 return True
@@ -580,16 +574,16 @@ class DbFunctions:
     def UpdatePassword():
         newPassword = input("Enter your new password: ")
         DbFunctions.ExecQuery(
-            f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Decrypt(currentUser[1])}'")
+            f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(currentUser[1])}'")
         return
 
     @staticmethod
     def ResetPassword(username, accountType):
-        newPassword = input("Enter your new password: ")
+        newPassword = input("Enter a new password: ")
         for row in DbFunctions.GetAllAccounts():
             if row[1] == Functions.Encrypt(username) and row[6] == accountType:
                 DbFunctions.ExecQuery(
-                    f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Decrypt(username)}'")
+                    f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(username)}'")
                 return True
         return False
 
