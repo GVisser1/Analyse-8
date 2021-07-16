@@ -113,7 +113,7 @@ class Adviser:
     def UpdatePassword():
         while True:
             oldPassword = input("Enter your old password: ")
-            if oldPassword == currentUser[2]:
+            if Functions.Encrypt(oldPassword) == currentUser[2]:
                 if DbFunctions.UpdatePassword():
                     break
             else:
@@ -528,7 +528,7 @@ class DbFunctions:
     @staticmethod
     def ModifyAccount(oldUsername, accountType):
         for row in DbFunctions.GetAllAccounts():
-            if row[1] == Functions.Encrypt(oldUsername) and row[6] == accountType:
+            if row[1] == Functions.Encrypt(oldUsername.lower()) and row[6] == accountType:
                 username = input("Enter a (new) username: ").lower()
                 password = input("Enter a (new) password: ")
                 firstName = input("Enter a (new) first name: ")
@@ -538,18 +538,17 @@ class DbFunctions:
                         f"UPDATE Accounts SET Username = '{Functions.Encrypt(username)}', Password = '{Functions.Encrypt(password)}', "
                         f"FirstName = '{Functions.Encrypt(firstName)}', LastName = '{Functions.Encrypt(lastName)}' "
                         f"WHERE Username = '{Functions.Encrypt(oldUsername)}'")
-                    print(f"{accountType}'s account has been modified")
+                    print(f"\n{accountType}'s account has been modified\n")
                     Functions.LogActivity(currentUser[1], f"Modified {accountType}", "", "No")
                     return True
                 Functions.LogActivity(currentUser[1], f"Failed to modify {accountType}",
                                       f"Input by user: username = {username}, password = {password}, "
                                       f"first name = {firstName}, last name = {lastName}", "Yes")
                 return False
-            else:
-                Functions.LogActivity(currentUser[1], "Failed to modify account",
-                                      f"Input by user: old username= {oldUsername}", "Yes")
-                print(f"No {accountType} can be found with the given username!\n")
-                return False
+        Functions.LogActivity(currentUser[1], "Failed to modify account",
+                              f"Input by user: old username= {oldUsername}", "Yes")
+        print(f"No {accountType} can be found with the given username!\n")
+        return False
 
     @staticmethod
     def ModifyClient(oldEmail, oldPhoneNumber):
@@ -620,8 +619,8 @@ class DbFunctions:
     @staticmethod
     def DeleteAccount(username, accountType):
         for row in DbFunctions.GetAllAccounts():
-            if row[1] == Functions.Encrypt(username) and row[6] == accountType:
-                DbFunctions.ExecQuery(f"DELETE FROM Accounts WHERE Username = '{Functions.Encrypt(username)}'")
+            if row[1] == Functions.Encrypt(username.lower()) and row[6] == accountType:
+                DbFunctions.ExecQuery(f"DELETE FROM Accounts WHERE Username = '{Functions.Encrypt(username.lower())}'")
                 print(f"\n{accountType}'s account has been deleted!\n")
                 Functions.LogActivity(currentUser[1], f"Deleted {accountType}", f"User {username} is deleted", "No")
                 return True
@@ -665,10 +664,10 @@ class DbFunctions:
                                   f"User not found with data: username={username}, accountType={accountType}", "Yes")
             return False
         for row in DbFunctions.GetAllAccounts():
-            if row[1] == Functions.Encrypt(username) and row[6] == accountType:
+            if row[1] == Functions.Encrypt(username.lower()) and row[6] == accountType:
                 DbFunctions.ExecQuery(
                     f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(username)}'")
-                print("\nAdviser's password has been changed!\n")
+                print(f"\n{accountType}'s password has been changed!\n")
                 Functions.LogActivity(currentUser[1], "Reset password",
                                       f"Reset the password of {username} with account type {accountType} to {newPassword}", "No")
                 return True
