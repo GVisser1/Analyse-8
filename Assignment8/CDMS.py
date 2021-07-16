@@ -1,4 +1,5 @@
 import sqlite3
+import string
 import zipfile
 import json
 from datetime import datetime
@@ -9,6 +10,7 @@ cur = con.cursor()
 
 with open('log.json', 'r') as logs:
     logData = json.load(logs)
+
 
 def SignIn():
     global currentUser
@@ -22,8 +24,8 @@ def SignIn():
             CheckAccessLevel()
     print("\nUsername and/or password is incorrect\n")
     currentUser = -1
-    additionalinfo = "Password " + str(password) + " is tried in combination with Username: " + str(username)
-    Functions.LogActivity(username, "Unsuccesful login", additionalinfo, "Yes")
+    Functions.LogActivity(Functions.Encrypt(username), "Unsuccessful login",
+                          f"Password {password} is tried in combination with Username: {username}", "Yes")
     SignIn()
 
 
@@ -43,6 +45,7 @@ def ReturnToMenu():
         option = input("Put in your choice: ")
     if option == 'y':
         CheckAccessLevel()
+
 
 class Adviser:
     @staticmethod
@@ -71,31 +74,31 @@ class Adviser:
 
     @staticmethod
     def AddClient():
-        DbFunctions.AddClient()
-        Functions.LogActivity(currentUser[1], "Added Client", "", "No")
+        while True:
+            if DbFunctions.AddClient():
+                break
         print("\nClient has been added!\n")
         CheckAccessLevel()
 
     @staticmethod
     def RetrieveClientInfo():
-        while True:
-            fullName = input("\nEnter the full name of the client whose information you want to retrieve: ")
-            allClients = DbFunctions.GetClients(fullName)
-            if len(allClients) > 0:
-                print(f"-------------------------------------\n"
-                      f"Results for clients with the full name: {fullName}\n")
-                for row in allClients:
-                    print(f"Fullname: {Functions.Decrypt(row[1])}\n"
-                          f"Street & house number: {Functions.Decrypt(row[2])}, {Functions.Decrypt(row[3])}\n"
-                          f"Zip code & city: {Functions.Decrypt(row[4])}, {Functions.Decrypt(row[5])}\n"
-                          f"Email Address: {Functions.Decrypt(row[6])}\n"
-                          f"Phone Number: {Functions.Decrypt(row[7])}\n"
-                          f"\n-------------------------------------\n")
-                break
-            else:
-                print(f"\nNo clients have been found with the full name: {fullName}!\n")
+        fullName = input("\nEnter the full name of the client whose information you want to retrieve: ")
+        print(f"-------------------------------------\n"
+              f"Results for clients with the full name: {fullName}\n")
+        count = 0
+        for row in DbFunctions.GetAllClients():
+            if row[1] == Functions.Encrypt(fullName):
+                count += 1
+                print(f"Fullname: {Functions.Decrypt(row[1])}\n"
+                      f"Street & house number: {Functions.Decrypt(row[2])}, {Functions.Decrypt(row[3])}\n"
+                      f"Zip code & city: {Functions.Decrypt(row[4])}, {Functions.Decrypt(row[5])}\n"
+                      f"Email Address: {Functions.Decrypt(row[6])}\n"
+                      f"Phone Number: {Functions.Decrypt(row[7])}\n"
+                      f"\n-------------------------------------\n")
+        if count == 0:
+            print(f"No client has been found with the full name: {fullName}!\n")
         Functions.LogActivity(currentUser[1], "Retrieved Client info", "", "No")
-        CheckAccessLevel()
+        ReturnToMenu()
 
     @staticmethod
     def ModifyClient():
@@ -103,11 +106,7 @@ class Adviser:
             oldEmail = input("\nEnter the email address of the client you want to modify: ")
             oldPhoneNumber = "+31-6-" + input("Enter a phone number: +31-6-")
             if DbFunctions.ModifyClient(oldEmail, oldPhoneNumber):
-                print("\nClient has been modified!\n")
                 break
-            else:
-                print("No client can be found with the given email address and/or phone number!\n")
-        Functions.LogActivity(currentUser[1], "Modified Client", "", "No")
         CheckAccessLevel()
 
     @staticmethod
@@ -116,12 +115,11 @@ class Adviser:
             oldPassword = input("Enter your old password: ")
             if oldPassword == currentUser[2]:
                 if DbFunctions.UpdatePassword():
-                    print("Your password has been changed!\n")
-                    Functions.LogActivity(currentUser[1], "Updated Password", "", "No")
                     break
             else:
                 print("Password does not match\n")
-                Functions.LogActivity(currentUser[1], "Failed to Update Password", f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
+                Functions.LogActivity(currentUser[1], "Failed to Update Password",
+                                      f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
         CheckAccessLevel()
 
 
@@ -129,28 +127,27 @@ class SystemAdmin:
     @staticmethod
     def ShowMenu():
         count = 0
-        with open('log.json', 'r') as logs:
-            for row in logs:
-                if row["Unread"] == True and Functions.Decrypt(row["Suspicious"]) == "Yes":
-                    count += 1
-        
+        for row in logData:
+            if row["Read"] == "False" and Functions.Decrypt(row["Suspicious"]) == "Yes":
+                count += 1
+
         alert = ""
         if count > 0:
             if count == 1:
                 alert = f"ALERT: {count} Suspicious unread activity"
             else:
                 alert = f"ALERT: {count} Suspicious unread activities"
-        
+
         print("-----------------------------------\n"
-                    "|               MENU              |\n"
-                    "-----------------------------------\n"
-                    "1. Check users and roles\n"
-                    "2. View client options\n"
-                    "3. View adviser options\n"
-                    "4. Create Backup\n"
-                    f"5. View log file(s) {alert} \n" 
-                    "6. Update password\n"
-                    "7. Exit\n")
+              "|               MENU              |\n"
+              "-----------------------------------\n"
+              "1. Check users and roles\n"
+              "2. View client options\n"
+              "3. View adviser options\n"
+              "4. Create Backup\n"
+              f"5. View log file(s) {alert} \n"
+              "6. Update password\n"
+              "7. Exit\n")
 
         option = input("Put in your choice: ")
         while option not in ['1', '2', '3', '4', '5', '6', '7']:
@@ -226,15 +223,9 @@ class SystemAdmin:
 
     @staticmethod
     def AddAdviser():
-        print("\nCreate an account for a new Adviser.\n"
-              "Username must be between 5 & 20 Characters and must be started with a letter.\n"
-              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, \n"
-              "one uppercase letter, one digit, and one special character.\n")
-
         while True:
             if DbFunctions.AddAccount("Adviser"):
                 break
-        print("\nAdviser has been added!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -242,10 +233,7 @@ class SystemAdmin:
         while True:
             username = input("\nEnter the username of the adviser whose account you want to modify: ")
             if DbFunctions.ModifyAccount(username, "Adviser"):
-                print("Adviser's account has been modified")
                 break
-            else:
-                print("No adviser can be found with the given username!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -253,11 +241,7 @@ class SystemAdmin:
         while True:
             username = input("\nEnter the username of the adviser that you want to delete: ")
             if DbFunctions.DeleteAccount(username, "Adviser"):
-                print("\nAdviser has been deleted!\n")
                 break
-            else:
-                print("\nNo adviser can be found with the given username!\n")
-                ReturnToMenu()
         CheckAccessLevel()
 
     @staticmethod
@@ -265,10 +249,7 @@ class SystemAdmin:
         while True:
             username = input("\nEnter the username of the adviser whose password you want to reset: ")
             if DbFunctions.ResetPassword(username, "Adviser"):
-                print("\nAdviser's password has been changed!\n")
                 break
-            else:
-                print("\nNo adviser can be found with the given username!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -277,12 +258,7 @@ class SystemAdmin:
             email = input("\nEnter the email of the client that you want to delete: ")
             phoneNumber = "+31-6-" + input("Enter the phone number of the client that you want to delete: +31-6-")
             if DbFunctions.DeleteClient(email, phoneNumber):
-                print("\nClient has been deleted!\n")
-                Functions.LogActivity(currentUser[1], "Deleted Client", f"email:{email}, phoneNumber:{phoneNumber}", "No")
                 break
-            else:
-                print("\nNo client can be found with the given email and/or phone number!\n")
-                Functions.LogActivity(currentUser[1], "Failed to delete client", f"No client can be found with email={email} and phone number={phoneNumber}", "Yes")
         CheckAccessLevel()
 
     @staticmethod
@@ -300,8 +276,8 @@ class SystemAdmin:
         print("-----------------------------------\n"
               "|               MENU              |\n"
               "-----------------------------------\n"
-              "1. View whole log\n"
-              "2. View unread\n"
+              "1. View all logs\n"
+              "2. View unread suspicious logs\n"
               "3. Return\n")
         option = input("Put in your choice: ")
 
@@ -310,26 +286,31 @@ class SystemAdmin:
         if option == '1':
             print("Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
             for row in logData:
-                print(row["Id"] + " | " + 
-                Functions.Decrypt(row["Username"]) + " | " + 
-                Functions.Decrypt(row["Date"]) + " | " + 
-                Functions.Decrypt(row["Time"]) + " | " + 
-                Functions.Decrypt(row["Activity"]) + " | " + 
-                Functions.Decrypt(row["Additional Information"]) + " | " + 
-                Functions.Decrypt(row["Suspicious"]) + "\n")
+                print(row["Id"] + " | " +
+                      Functions.Decrypt(row["Username"]) + " | " +
+                      Functions.Decrypt(row["Date"]) + " | " +
+                      Functions.Decrypt(row["Time"]) + " | " +
+                      Functions.Decrypt(row["Activity"]) + " | " +
+                      Functions.Decrypt(row["Additional Information"]) + " | " +
+                      Functions.Decrypt(row["Suspicious"]) + "\n")
+                with open('log.json', 'w') as logs:
+                    row["Read"] = "True"
+                    json.dump(logData, logs, indent=4)
             ReturnToMenu()
         elif option == '2':
             print("Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
             for row in logData:
-                if row["Unread"]:
-                    print(row["Id"] + " | " + 
-                    Functions.Decrypt(row["Username"]) + " | " + 
-                    Functions.Decrypt(row["Date"]) + " | " + 
-                    Functions.Decrypt(row["Time"]) + " | " + 
-                    Functions.Decrypt(row["Activity"]) + " | " + 
-                    Functions.Decrypt(row["Additional Information"]) + " | " + 
-                    Functions.Decrypt(row["Suspicious"]) + "\n")
-                row["Unread"] = False
+                if row["Read"] == "False" and Functions.Decrypt(row["Suspicious"]) == "Yes":
+                    print(row["Id"] + " | " +
+                          Functions.Decrypt(row["Username"]) + " | " +
+                          Functions.Decrypt(row["Date"]) + " | " +
+                          Functions.Decrypt(row["Time"]) + " | " +
+                          Functions.Decrypt(row["Activity"]) + " | " +
+                          Functions.Decrypt(row["Additional Information"]) + " | " +
+                          Functions.Decrypt(row["Suspicious"]) + "\n")
+                with open('log.json', 'w') as logs:
+                    row["Read"] = "True"
+                    json.dump(logData, logs, indent=4)
             ReturnToMenu()
         elif option == '3':
             CheckAccessLevel()
@@ -340,12 +321,11 @@ class SystemAdmin:
             oldPassword = input("Enter your old password: ")
             if oldPassword == currentUser[2]:
                 if DbFunctions.UpdatePassword():
-                    print("Your password has been changed!\n")
-                    Functions.LogActivity(currentUser[1], "Updated Password", "", "No")
                     break
             else:
                 print("Password does not match\n")
-                Functions.LogActivity(currentUser[1], "Failed to Update Password", f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
+                Functions.LogActivity(currentUser[1], "Failed to Update Password",
+                                      f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
         CheckAccessLevel()
 
 
@@ -353,18 +333,17 @@ class SuperAdmin:
     @staticmethod
     def ShowMenu():
         count = 0
-        with open('log.json', 'r') as logs:
-            for row in logs:
-                if row["Unread"] == True and Functions.Decrypt(row["Suspicious"]) == "Yes":
-                    count += 1
-        
+        for row in logData:
+            if row["Read"] == "False" and Functions.Decrypt(row["Suspicious"]) == "Yes":
+                count += 1
+
         alert = ""
         if count > 0:
             if count == 1:
                 alert = f"ALERT: {count} Suspicious unread activity"
             else:
                 alert = f"ALERT: {count} Suspicious unread activities"
-        
+
         print("-----------------------------------\n"
               "|               MENU              |\n"
               "-----------------------------------\n"
@@ -375,7 +354,7 @@ class SuperAdmin:
               "5. Create Backup\n"
               f"6. View log file(s) {alert} \n"
               "7. Exit\n")
-        
+
         option = input("Put in your choice: ")
         while option not in ['1', '2', '3', '4', '5', '6', '7']:
             option = input("Put in your choice: ")
@@ -417,15 +396,9 @@ class SuperAdmin:
 
     @staticmethod
     def AddAdmin():
-        print("\nCreate an account for a new Admin.\n"
-              "Username must be between 5 & 20 Characters and must be started with a letter.\n"
-              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, \n"
-              "one uppercase letter, one digit, and one special character.\n")
-
         while True:
             if DbFunctions.AddAccount("SystemAdmin"):
                 break
-        print("\nAdmin has been added!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -433,10 +406,7 @@ class SuperAdmin:
         while True:
             username = input("\nEnter the username of the admin whose account you want to modify: ")
             if DbFunctions.ModifyAccount(username, "SystemAdmin"):
-                print("\nAdmin's account has been modified!\n")
                 break
-            else:
-                print("\nNo admin can be found with the given username!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -444,10 +414,7 @@ class SuperAdmin:
         while True:
             username = input("\nEnter the username of the admin that you want to delete: ")
             if DbFunctions.DeleteAccount(username, "SystemAdmin"):
-                print("\nAdmin has been deleted!\n")
                 break
-            else:
-                print("\nNo admin can be found with the given username!\n")
         CheckAccessLevel()
 
     @staticmethod
@@ -455,10 +422,7 @@ class SuperAdmin:
         while True:
             username = input("\nEnter the username of the admin whose password you want to reset: ")
             if DbFunctions.ResetPassword(username, "SystemAdmin"):
-                print("\nAdmin's password has been changed!\n")
                 break
-            else:
-                print("\nNo admin can be found with the given username!\n")
         CheckAccessLevel()
 
 
@@ -485,19 +449,25 @@ class DbFunctions:
 
     @staticmethod
     def AddAccount(accountType):
+        print(f"\nCreate an account for a new {accountType}.\n"
+              "Username must be between 5 & 20 Characters and must be started with a letter.\n"
+              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, \n"
+              "one uppercase letter, one digit, and one special character.\n")
         username = input("Enter a username: ").lower()
         password = input("Enter a password: ")
         firstName = input("Enter a first name: ")
         lastName = input("Enter a last name: ")
         registrationDate = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        if Functions.CheckUsername(username) and Functions.CheckPassword(password):
+        if Functions.CheckUsername(username) and Functions.CheckPassword(password) and Functions.CheckStringInput([firstName, lastName]):
             DbFunctions.ExecQuery(f"INSERT INTO Accounts (Username, Password, FirstName, LastName, RegistrationDate, Type) "
                                   f"VALUES ('{Functions.Encrypt(username)}', '{Functions.Encrypt(password)}', "
                                   f"'{Functions.Encrypt(firstName)}', '{Functions.Encrypt(lastName)}', '{registrationDate}', '{accountType}')")
+            print(f"\n{accountType} has been added!\n")
             Functions.LogActivity(currentUser[1], f"Added {accountType}", "", "No")
             return True
         else:
-            Functions.LogActivity(currentUser[1], f"Failed to add {accountType}", "Input by user: username={username}, password={password}, first name={firstName}, last name={lastName}", "Yes")
+            Functions.LogActivity(currentUser[1], f"Failed to add {accountType}",
+                                  f"Input by user: username={username}, password={password}, first name={firstName}, last name={lastName}", "Yes")
             return False
 
     @staticmethod
@@ -542,12 +512,18 @@ class DbFunctions:
         elif option == '10':
             city = "Nijmegen"
         emailAddress = input("Enter a email address: ")
-        phoneNumber = "+31-6-" + input("Enter a phone number: +31-6-")
-        DbFunctions.ExecQuery(f"INSERT INTO Clients (FullName, StreetName, HouseNumber, ZipCode, City, EmailAddress, PhoneNumber) "
-                              f"VALUES ('{Functions.Encrypt(fullName)}', '{Functions.Encrypt(streetName)}', '{Functions.Encrypt(houseNumber)}', "
-                              f"'{Functions.Encrypt(zipCode)}', '{Functions.Encrypt(city)}', "
-                              f"'{Functions.Encrypt(emailAddress)}', '{Functions.Encrypt(phoneNumber)}')")
-        return True
+        phoneNumber = input("Enter a phone number: +31-6-")
+        if Functions.CheckStringInput([fullName, streetName, houseNumber, zipCode, emailAddress]) and Functions.CheckPhoneNumber(phoneNumber):
+            DbFunctions.ExecQuery(f"INSERT INTO Clients (FullName, StreetName, HouseNumber, ZipCode, City, EmailAddress, PhoneNumber) "
+                                  f"VALUES ('{Functions.Encrypt(fullName)}', '{Functions.Encrypt(streetName)}', '{Functions.Encrypt(houseNumber)}', "
+                                  f"'{Functions.Encrypt(zipCode)}', '{Functions.Encrypt(city)}', "
+                                  f"'{Functions.Encrypt(emailAddress)}', '{Functions.Encrypt('+31-6-' + phoneNumber)}')")
+            Functions.LogActivity(currentUser[1], "Added Client", "", "No")
+            return True
+        Functions.LogActivity(currentUser[1], "Failed to add Client",
+                              f"Input by user: full name: {fullName}, street name & house number: {streetName} {houseNumber}, "
+                              f"zip code: {zipCode}, email address: {emailAddress}, phone number: {phoneNumber}", "Yes")
+        return False
 
     @staticmethod
     def ModifyAccount(oldUsername, accountType):
@@ -557,21 +533,26 @@ class DbFunctions:
                 password = input("Enter a (new) password: ")
                 firstName = input("Enter a (new) first name: ")
                 lastName = input("Enter a (new) last name: ")
-                if Functions.CheckUsername(username) and Functions.CheckPassword(password):
+                if Functions.CheckUsername(username) and Functions.CheckPassword(password) and Functions.CheckStringInput([firstName, lastName]):
                     DbFunctions.ExecQuery(
                         f"UPDATE Accounts SET Username = '{Functions.Encrypt(username)}', Password = '{Functions.Encrypt(password)}', "
                         f"FirstName = '{Functions.Encrypt(firstName)}', LastName = '{Functions.Encrypt(lastName)}' "
                         f"WHERE Username = '{Functions.Encrypt(oldUsername)}'")
+                    print(f"{accountType}'s account has been modified")
                     Functions.LogActivity(currentUser[1], f"Modified {accountType}", "", "No")
                     return True
-                Functions.LogActivity(currentUser[1], f"Failed to modify {accountType}", f"Input by user: username={username}, password={password}, first name={firstName}, last name={lastName}", "Yes")
+                Functions.LogActivity(currentUser[1], f"Failed to modify {accountType}",
+                                      f"Input by user: username = {username}, password = {password}, "
+                                      f"first name = {firstName}, last name = {lastName}", "Yes")
                 return False
-        else:
-            return False
+            else:
+                Functions.LogActivity(currentUser[1], "Failed to modify account",
+                                      f"Input by user: old username= {oldUsername}", "Yes")
+                print(f"No {accountType} can be found with the given username!\n")
+                return False
 
     @staticmethod
     def ModifyClient(oldEmail, oldPhoneNumber):
-
         for row in DbFunctions.GetAllClients():
             if row[6] == Functions.Encrypt(oldEmail) and row[7] == Functions.Encrypt(oldPhoneNumber):
                 fullName = input("Enter a (new) full name: ")
@@ -614,15 +595,26 @@ class DbFunctions:
                 elif option == '10':
                     city = "Nijmegen"
                 emailAddress = input("Enter a (new) email address: ")
-                phoneNumber = "+31-6-" + input("Enter a (new) phone number: +31-6-")
-                DbFunctions.ExecQuery(
-                    f"UPDATE Clients SET FullName = '{Functions.Encrypt(fullName)}', StreetName = '{Functions.Encrypt(streetName)}', "
-                    f"HouseNumber = '{Functions.Encrypt(houseNumber)}', ZipCode = '{Functions.Encrypt(zipCode)}', "
-                    f"City = '{Functions.Encrypt(city)}', EmailAddress = '{Functions.Encrypt(emailAddress)}', "
-                    f"PhoneNumber = '{Functions.Encrypt(phoneNumber)}' "
-                    f"WHERE EmailAddress = '{Functions.Encrypt(oldEmail)}' AND PhoneNumber = '{Functions.Encrypt(oldPhoneNumber)}'")
-                return True
+                phoneNumber = input("Enter a (new) phone number: +31-6-")
+                if Functions.CheckStringInput([fullName, streetName, houseNumber, zipCode, emailAddress]) and Functions.CheckPhoneNumber(phoneNumber):
+                    DbFunctions.ExecQuery(
+                        f"UPDATE Clients SET FullName = '{Functions.Encrypt(fullName)}', StreetName = '{Functions.Encrypt(streetName)}', "
+                        f"HouseNumber = '{Functions.Encrypt(houseNumber)}', ZipCode = '{Functions.Encrypt(zipCode)}', "
+                        f"City = '{Functions.Encrypt(city)}', EmailAddress = '{Functions.Encrypt(emailAddress)}', "
+                        f"PhoneNumber = '{Functions.Encrypt('+31-6-' + phoneNumber)}' "
+                        f"WHERE EmailAddress = '{Functions.Encrypt(oldEmail)}' AND PhoneNumber = '{Functions.Encrypt(oldPhoneNumber)}'")
+                    print("Client has been modified!")
+                    Functions.LogActivity(currentUser[1], "Modified Client", "", "No")
+                    return True
+                else:
+                    Functions.LogActivity(currentUser[1], "Failed to modify Client",
+                                          f"Input by user: full name: {fullName}, street name & house number: {streetName} {houseNumber}, "
+                                          f"zip code: {zipCode}, email address: {emailAddress}, phone number: {phoneNumber}", "Yes")
+                    return False
             else:
+                Functions.LogActivity(currentUser[1], "Failed to modify Client",
+                                      f"Input by user: old email address: {oldEmail}, old phone number: {oldPhoneNumber}", "Yes")
+                print("No client can be found with the given email address and/or phone number!\n")
                 return False
 
     @staticmethod
@@ -630,9 +622,12 @@ class DbFunctions:
         for row in DbFunctions.GetAllAccounts():
             if row[1] == Functions.Encrypt(username) and row[6] == accountType:
                 DbFunctions.ExecQuery(f"DELETE FROM Accounts WHERE Username = '{Functions.Encrypt(username)}'")
+                print(f"\n{accountType}'s account has been deleted!\n")
                 Functions.LogActivity(currentUser[1], f"Deleted {accountType}", f"User {username} is deleted", "No")
                 return True
-        Functions.LogActivity(currentUser[1], f"Failed to delete {accountType}", f"User not found with data: username={username}, accountType={accountType}", "Yes")
+        print(f"\nNo {accountType} can be found with the given username!\n")
+        Functions.LogActivity(currentUser[1], f"Failed to delete {accountType}",
+                              f"User not found with data: username={username}, accountType={accountType}", "Yes")
         return False
 
     @staticmethod
@@ -641,7 +636,12 @@ class DbFunctions:
             if row[6] == Functions.Encrypt(email) and row[7] == Functions.Encrypt(phoneNumber):
                 DbFunctions.ExecQuery(f"DELETE FROM Clients WHERE EmailAddress = '{Functions.Encrypt(email)}' "
                                       f"AND PhoneNumber = '{Functions.Encrypt(phoneNumber)}'")
+                print("\nClient has been deleted!\n")
+                Functions.LogActivity(currentUser[1], "Deleted Client", f"email:{email}, phoneNumber:{phoneNumber}", "No")
                 return True
+        print("\nNo client can be found with the given email and/or phone number!\n")
+        Functions.LogActivity(currentUser[1], "Failed to delete client",
+                              f"No client can be found with email={email} and phone number={phoneNumber}", "Yes")
         return False
 
     @staticmethod
@@ -650,6 +650,8 @@ class DbFunctions:
         if Functions.CheckPassword(newPassword):
             DbFunctions.ExecQuery(
                 f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(currentUser[1])}'")
+            print("Your password has been changed!\n")
+            Functions.LogActivity(currentUser[1], "Updated Password", "", "No")
             return True
         else:
             Functions.LogActivity(currentUser[1], "Failed to Update Password", f"New password did not meet the criteria: {newPassword}", "Yes")
@@ -658,17 +660,26 @@ class DbFunctions:
     @staticmethod
     def ResetPassword(username, accountType):
         newPassword = input("Enter a new password: ")
+        if not Functions.CheckPassword(newPassword):
+            Functions.LogActivity(currentUser[1], f"Failed to reset password",
+                                  f"User not found with data: username={username}, accountType={accountType}", "Yes")
+            return False
         for row in DbFunctions.GetAllAccounts():
-            if row[1] == Functions.Encrypt(username) and row[6] == accountType and Functions.CheckPassword(newPassword):
+            if row[1] == Functions.Encrypt(username) and row[6] == accountType:
                 DbFunctions.ExecQuery(
                     f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(username)}'")
-                Functions.LogActivity(currentUser[1], "Resetted password", f"Resetted the password of {username} with account type {accountType} to {newPassword}", "No")
+                print("\nAdviser's password has been changed!\n")
+                Functions.LogActivity(currentUser[1], "Reset password",
+                                      f"Reset the password of {username} with account type {accountType} to {newPassword}", "No")
                 return True
-        Functions.LogActivity(currentUser[1], f"Failed to reset password", f"User not found with data: username={username}, accountType={accountType}", "Yes")
+        print(f"No {accountType.lower()} can be found with the given username!")
+        Functions.LogActivity(currentUser[1], f"Failed to reset password",
+                              f"User not found with data: username={username}, accountType={accountType}", "Yes")
         return False
 
 
 class Functions:
+    # Encrypt data using Caesar Cipher
     @staticmethod
     def Encrypt(text):
         encrypted = ""
@@ -715,7 +726,7 @@ class Functions:
     @staticmethod
     # Validates the entered username
     def CheckUsername(username):
-        usernameWhitelist = ["-", "_", "'", "."]
+        usernameWhitelist = list(string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + ".")
         for row in DbFunctions.GetAllAccounts():
             if row[1] == Functions.Encrypt(username):
                 print("Username already exists!\n")
@@ -727,7 +738,7 @@ class Functions:
             print("Username must have a length of at least 5 characters and must be no longer than 20 characters.\n")
             return False
         for i in username:
-            if not i.isupper() and not i.islower() and not i.isdigit() and i not in usernameWhitelist:
+            if i not in usernameWhitelist:
                 print("Username contains invalid characters.\n")
                 return False
         return True
@@ -753,37 +764,58 @@ class Functions:
             print(checklist)
             return False
         return True
-    
+
+    @staticmethod
+    def CheckPhoneNumber(phoneNumber):
+        if len(phoneNumber) != 8:
+            print('Phone number is out of range.\n')
+            return False
+        try:
+            int(phoneNumber)
+            return True
+        except ValueError:
+            print("Phone number is not an integer. It's a string\n")
+            return False
+
+    @staticmethod
+    def CheckStringInput(inputList):
+        inputWhitelist = list(string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + "." + "@" + "!" + "+" + " ")
+        for input in inputList:
+            if len(input) > 40:
+                print("Input must not be longer than 40 characters.\n")
+                return False
+            for i in input:
+                if i not in inputWhitelist:
+                    print("Input contains invalid characters.\n")
+                    return False
+            return True
+
     @staticmethod
     def LogActivity(username, activity, information, sus):
         DateTimeCurrent = datetime.now()
 
-        id = str(len(logData) + 1)
+        count = str(len(logData) + 1)
 
         date = str(DateTimeCurrent.day) + "-" + str(DateTimeCurrent.month) + "-" + str(DateTimeCurrent.year)
         time = str(DateTimeCurrent.hour) + ":" + str(DateTimeCurrent.minute) + ":" + str(DateTimeCurrent.second)
 
         with open('log.json', 'r+') as logs:
             logData.append({
-                "Id": id,
-                "Username": Functions.Encrypt(username),
+                "Id": count,
+                "Username": username,
                 "Date": Functions.Encrypt(date),
                 "Time": Functions.Encrypt(time),
                 "Activity": Functions.Encrypt(activity),
                 "Additional Information": Functions.Encrypt(information),
                 "Suspicious": Functions.Encrypt(sus),
-                "Unread":True
+                "Read": "False"
             })
             logs.seek(0)
             json.dump(logData, logs, indent=4)
             logs.truncate()
 
+
 print("---------------------------------------------------\n"
       "|  Welcome to the Clients Data Management System  |\n"
       "---------------------------------------------------\n")
 SignIn()
-
-#
-# Adviser
-# System Admin
-# Super Admin -> Hard coded - username: superadmin, password: Admin!23
