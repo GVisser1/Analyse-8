@@ -119,7 +119,7 @@ class Adviser:
             else:
                 print("Password does not match\n")
                 Functions.LogActivity(currentUser[1], "Failed to Update Password",
-                                      f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
+                                      f"Given password: {oldPassword} does not match old password", "Yes")
         CheckAccessLevel()
 
 
@@ -319,13 +319,13 @@ class SystemAdmin:
     def UpdatePassword():
         while True:
             oldPassword = input("Enter your old password: ")
-            if oldPassword == currentUser[2]:
+            if Functions.Encrypt(oldPassword) == currentUser[2]:
                 if DbFunctions.UpdatePassword():
                     break
             else:
                 print("Password does not match\n")
                 Functions.LogActivity(currentUser[1], "Failed to Update Password",
-                                      f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
+                                      f"Given password: {oldPassword} does not match old password", "Yes")
         CheckAccessLevel()
 
 
@@ -649,7 +649,7 @@ class DbFunctions:
         if Functions.CheckPassword(newPassword):
             DbFunctions.ExecQuery(
                 f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(currentUser[1])}'")
-            print("Your password has been changed!\n")
+            print("\nYour password has been changed!\n")
             Functions.LogActivity(currentUser[1], "Updated Password", "", "No")
             return True
         else:
