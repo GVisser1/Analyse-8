@@ -1,11 +1,14 @@
 import sqlite3
 import zipfile
+import json
 from datetime import datetime
 
 global currentUser
 con = sqlite3.connect('CDMS.db')
 cur = con.cursor()
 
+with open('log.json', 'r') as logs:
+    logData = json.load(logs)
 
 def SignIn():
     global currentUser
@@ -15,9 +18,12 @@ def SignIn():
         if username == Functions.Decrypt(row[1]) and password == Functions.Decrypt(row[2]):
             print("\nSigned in successfully\n")
             currentUser = row
+            Functions.LogActivity(currentUser[1], "Logged in", "", "No")
             CheckAccessLevel()
     print("\nUsername and/or password is incorrect\n")
     currentUser = -1
+    additionalinfo = "Password " + str(password) + " is tried in combination with Username: " + str(username)
+    Functions.LogActivity(username, "Unsuccesful login", additionalinfo, "Yes")
     SignIn()
 
 
@@ -37,18 +43,6 @@ def ReturnToMenu():
         option = input("Put in your choice: ")
     if option == 'y':
         CheckAccessLevel()
-
-
-def StopAction():
-    print("Do you want to return to the menu? Press [y/n]\n")
-    option = input("Put in your choice: ")
-    while option not in ['y', 'n']:
-        option = input("Put in your choice: ")
-    if option == 'y':
-        CheckAccessLevel()
-    elif option == 'n':
-        return
-
 
 class Adviser:
     @staticmethod
@@ -78,6 +72,7 @@ class Adviser:
     @staticmethod
     def AddClient():
         DbFunctions.AddClient()
+        Functions.LogActivity(currentUser[1], "Added Client", "", "No")
         print("\nClient has been added!\n")
         CheckAccessLevel()
 
@@ -99,6 +94,7 @@ class Adviser:
                 break
             else:
                 print(f"\nNo clients have been found with the full name: {fullName}!\n")
+        Functions.LogActivity(currentUser[1], "Retrieved Client info", "", "No")
         CheckAccessLevel()
 
     @staticmethod
@@ -111,6 +107,7 @@ class Adviser:
                 break
             else:
                 print("No client can be found with the given email address and/or phone number!\n")
+        Functions.LogActivity(currentUser[1], "Modified Client", "", "No")
         CheckAccessLevel()
 
     @staticmethod
@@ -118,11 +115,13 @@ class Adviser:
         while True:
             oldPassword = input("Enter your old password: ")
             if oldPassword == currentUser[2]:
-                DbFunctions.UpdatePassword()
-                print("Your password has been changed!\n")
-                break
+                if DbFunctions.UpdatePassword():
+                    print("Your password has been changed!\n")
+                    Functions.LogActivity(currentUser[1], "Updated Password", "", "No")
+                    break
             else:
                 print("Password does not match\n")
+                Functions.LogActivity(currentUser[1], "Failed to Update Password", f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
         CheckAccessLevel()
 
 
@@ -208,6 +207,7 @@ class SystemAdmin:
         for row in allAccounts:
             print(f"{Functions.Decrypt(row[1])}           -           {row[6]}\n")
         print("-------------------------------------\n")
+        Functions.LogActivity(currentUser[1], "Checked users", "", "No")
         ReturnToMenu()
 
     @staticmethod
@@ -264,34 +264,74 @@ class SystemAdmin:
             phoneNumber = "+31-6-" + input("Enter the phone number of the client that you want to delete: +31-6-")
             if DbFunctions.DeleteClient(email, phoneNumber):
                 print("\nClient has been deleted!\n")
+                Functions.LogActivity(currentUser[1], "Deleted Client", f"email:{email}, phoneNumber:{phoneNumber}", "No")
                 break
             else:
                 print("\nNo client can be found with the given email and/or phone number!\n")
+                Functions.LogActivity(currentUser[1], "Failed to delete client", f"No client can be found with email={email} and phone number={phoneNumber}", "Yes")
         CheckAccessLevel()
 
     @staticmethod
     def CreateBackup():
-        list_files = ['CDMS_Copy.db', 'CDMS_Copy2.db']
+        list_files = ['CDMS.db', 'log.json']
         with zipfile.ZipFile('Backups.zip', 'w') as zipFile:
             for file in list_files:
                 zipFile.write(file)
         print("\nSuccessfully made a backup\n")
+        Functions.LogActivity(currentUser[1], "Successfully made a backup", "", "No")
         CheckAccessLevel()
 
     @staticmethod
     def ViewLogFiles():
-        return
+        print("-----------------------------------\n"
+              "|               MENU              |\n"
+              "-----------------------------------\n"
+              "1. View whole log\n"
+              "2. View unread\n"
+              "3. Return\n")
+        option = input("Put in your choice: ")
+
+        while option not in ['1', '2', '3']:
+            option = input("Put in your choice: ")
+        if option == '1':
+            print("Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
+            for row in logData:
+                print(row["Id"] + " | " + 
+                Functions.Decrypt(row["Username"]) + " | " + 
+                Functions.Decrypt(row["Date"]) + " | " + 
+                Functions.Decrypt(row["Time"]) + " | " + 
+                Functions.Decrypt(row["Activity"]) + " | " + 
+                Functions.Decrypt(row["Additional Information"]) + " | " + 
+                Functions.Decrypt(row["Suspicious"]) + "\n")
+            ReturnToMenu()
+        elif option == '2':
+            print("Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
+            for row in logData:
+                if row["Unread"]:
+                    print(row["Id"] + " | " + 
+                    Functions.Decrypt(row["Username"]) + " | " + 
+                    Functions.Decrypt(row["Date"]) + " | " + 
+                    Functions.Decrypt(row["Time"]) + " | " + 
+                    Functions.Decrypt(row["Activity"]) + " | " + 
+                    Functions.Decrypt(row["Additional Information"]) + " | " + 
+                    Functions.Decrypt(row["Suspicious"]) + "\n")
+                row["Unread"] = False
+            ReturnToMenu()
+        elif option == '3':
+            CheckAccessLevel()
 
     @staticmethod
     def UpdatePassword():
         while True:
             oldPassword = input("Enter your old password: ")
             if oldPassword == currentUser[2]:
-                DbFunctions.UpdatePassword()
-                print("Your password has been changed!\n")
-                break
+                if DbFunctions.UpdatePassword():
+                    print("Your password has been changed!\n")
+                    Functions.LogActivity(currentUser[1], "Updated Password", "", "No")
+                    break
             else:
                 print("Password does not match\n")
+                Functions.LogActivity(currentUser[1], "Failed to Update Password", f"Given password: {oldPassword} does not match old password: {currentUser[2]}", "Yes")
         CheckAccessLevel()
 
 
@@ -426,8 +466,10 @@ class DbFunctions:
             DbFunctions.ExecQuery(f"INSERT INTO Accounts (Username, Password, FirstName, LastName, RegistrationDate, Type) "
                                   f"VALUES ('{Functions.Encrypt(username)}', '{Functions.Encrypt(password)}', "
                                   f"'{Functions.Encrypt(firstName)}', '{Functions.Encrypt(lastName)}', '{registrationDate}', '{accountType}')")
+            Functions.LogActivity(currentUser[1], f"Added {accountType}", "", "No")
             return True
         else:
+            Functions.LogActivity(currentUser[1], f"Failed to add {accountType}", "Input by user: username={username}, password={password}, first name={firstName}, last name={lastName}", "Yes")
             return False
 
     @staticmethod
@@ -492,7 +534,9 @@ class DbFunctions:
                         f"UPDATE Accounts SET Username = '{Functions.Encrypt(username)}', Password = '{Functions.Encrypt(password)}', "
                         f"FirstName = '{Functions.Encrypt(firstName)}', LastName = '{Functions.Encrypt(lastName)}' "
                         f"WHERE Username = '{Functions.Encrypt(oldUsername)}'")
+                    Functions.LogActivity(currentUser[1], f"Modified {accountType}", "", "No")
                     return True
+                Functions.LogActivity(currentUser[1], f"Failed to modify {accountType}", f"Input by user: username={username}, password={password}, first name={firstName}, last name={lastName}", "Yes")
                 return False
         else:
             return False
@@ -558,7 +602,9 @@ class DbFunctions:
         for row in DbFunctions.GetAllAccounts():
             if row[1] == Functions.Encrypt(username) and row[6] == accountType:
                 DbFunctions.ExecQuery(f"DELETE FROM Accounts WHERE Username = '{Functions.Encrypt(username)}'")
+                Functions.LogActivity(currentUser[1], f"Deleted {accountType}", f"User {username} is deleted", "No")
                 return True
+        Functions.LogActivity(currentUser[1], f"Failed to delete {accountType}", f"User not found with data: username={username}, accountType={accountType}", "Yes")
         return False
 
     @staticmethod
@@ -573,18 +619,24 @@ class DbFunctions:
     @staticmethod
     def UpdatePassword():
         newPassword = input("Enter your new password: ")
-        DbFunctions.ExecQuery(
-            f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(currentUser[1])}'")
-        return
+        if Functions.CheckPassword(newPassword):
+            DbFunctions.ExecQuery(
+                f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(currentUser[1])}'")
+            return True
+        else:
+            Functions.LogActivity(currentUser[1], "Failed to Update Password", f"New password did not meet the criteria: {newPassword}", "Yes")
+            return False
 
     @staticmethod
     def ResetPassword(username, accountType):
         newPassword = input("Enter a new password: ")
         for row in DbFunctions.GetAllAccounts():
-            if row[1] == Functions.Encrypt(username) and row[6] == accountType:
+            if row[1] == Functions.Encrypt(username) and row[6] == accountType and Functions.CheckPassword(newPassword):
                 DbFunctions.ExecQuery(
                     f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(username)}'")
+                Functions.LogActivity(currentUser[1], "Resetted password", f"Resetted the password of {username} with account type {accountType} to {newPassword}", "No")
                 return True
+        Functions.LogActivity(currentUser[1], f"Failed to reset password", f"User not found with data: username={username}, accountType={accountType}", "Yes")
         return False
 
 
@@ -673,7 +725,30 @@ class Functions:
             print(checklist)
             return False
         return True
+    
+    @staticmethod
+    def LogActivity(username, activity, information, sus):
+        DateTimeCurrent = datetime.now()
 
+        id = str(len(logData) + 1)
+
+        date = str(DateTimeCurrent.day) + "-" + str(DateTimeCurrent.month) + "-" + str(DateTimeCurrent.year)
+        time = str(DateTimeCurrent.hour) + ":" + str(DateTimeCurrent.minute) + ":" + str(DateTimeCurrent.second)
+
+        with open('log.json', 'r+') as logs:
+            logData.append({
+                "Id": id,
+                "Username": Functions.Encrypt(username),
+                "Date": Functions.Encrypt(date),
+                "Time": Functions.Encrypt(time),
+                "Activity": Functions.Encrypt(activity),
+                "Additional Information": Functions.Encrypt(information),
+                "Suspicious": Functions.Encrypt(sus),
+                "Unread":True
+            })
+            logs.seek(0)
+            json.dump(logData, logs, indent=4)
+            logs.truncate()
 
 print("---------------------------------------------------\n"
       "|  Welcome to the Clients Data Management System  |\n"
