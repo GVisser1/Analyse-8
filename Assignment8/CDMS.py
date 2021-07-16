@@ -128,16 +128,30 @@ class Adviser:
 class SystemAdmin:
     @staticmethod
     def ShowMenu():
+        count = 0
+        with open('log.json', 'r') as logs:
+            for row in logs:
+                if row["Unread"] == True and Functions.Decrypt(row["Suspicious"]) == "Yes":
+                    count += 1
+        
+        alert = ""
+        if count > 0:
+            if count == 1:
+                alert = f"ALERT: {count} Suspicious unread activity"
+            else:
+                alert = f"ALERT: {count} Suspicious unread activities"
+        
         print("-----------------------------------\n"
-              "|               MENU              |\n"
-              "-----------------------------------\n"
-              "1. Check users and roles\n"
-              "2. View client options\n"
-              "3. View adviser options\n"
-              "4. Create Backup\n"
-              "5. View log file(s)\n"
-              "6. Update password\n"
-              "7. Exit\n")
+                    "|               MENU              |\n"
+                    "-----------------------------------\n"
+                    "1. Check users and roles\n"
+                    "2. View client options\n"
+                    "3. View adviser options\n"
+                    "4. Create Backup\n"
+                    f"5. View log file(s) {alert} \n" 
+                    "6. Update password\n"
+                    "7. Exit\n")
+
         option = input("Put in your choice: ")
         while option not in ['1', '2', '3', '4', '5', '6', '7']:
             option = input("Put in your choice: ")
@@ -338,6 +352,19 @@ class SystemAdmin:
 class SuperAdmin:
     @staticmethod
     def ShowMenu():
+        count = 0
+        with open('log.json', 'r') as logs:
+            for row in logs:
+                if row["Unread"] == True and Functions.Decrypt(row["Suspicious"]) == "Yes":
+                    count += 1
+        
+        alert = ""
+        if count > 0:
+            if count == 1:
+                alert = f"ALERT: {count} Suspicious unread activity"
+            else:
+                alert = f"ALERT: {count} Suspicious unread activities"
+        
         print("-----------------------------------\n"
               "|               MENU              |\n"
               "-----------------------------------\n"
@@ -346,8 +373,9 @@ class SuperAdmin:
               "3. View adviser options\n"
               "4. View admin options\n"
               "5. Create Backup\n"
-              "6. View log file(s)\n"
+              f"6. View log file(s) {alert} \n"
               "7. Exit\n")
+        
         option = input("Put in your choice: ")
         while option not in ['1', '2', '3', '4', '5', '6', '7']:
             option = input("Put in your choice: ")
