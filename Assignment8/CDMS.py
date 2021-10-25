@@ -3,6 +3,7 @@ import string
 import zipfile
 import json
 from datetime import datetime
+from secrets import compare_digest
 
 global currentUser
 con = sqlite3.connect('CDMS.db')
@@ -17,7 +18,7 @@ def SignIn():
     username = input("Enter your username: ").lower()
     password = input("Enter your password: ")
     for row in DbFunctions.GetAllAccounts():
-        if username == Functions.Decrypt(row[1]) and password == Functions.Decrypt(row[2]):
+        if username == Functions.Decrypt(row[1]) and compare_digest(password, Functions.Decrypt(row[2])):
             print("\nSigned in successfully\n")
             currentUser = row
             Functions.LogActivity(currentUser[1], "Logged in", "", "No")
@@ -444,31 +445,32 @@ class DbFunctions:
 
     @staticmethod
     def GetClients(fullName):
-        cur.execute(f"SELECT * FROM Clients WHERE FullName = '{Functions.Encrypt(fullName)}'")
+        cur.execute("SELECT * FROM Clients WHERE `FullName` = ?;", (Functions.Encrypt(fullName)))
         return cur.fetchall()
 
     @staticmethod
     def AddAccount(accountType):
-        print(f"\nCreate an account for a new {accountType}.\n"
-              "Username must be between 5 & 20 Characters and must be started with a letter.\n"
-              "Password must be between 8 & 30 Characters and must contain at least one lowercase letter, \n"
-              "one uppercase letter, one digit, and one special character.\n")
+        print(f"\nCreate an account for a new {accountType}.\n")
         username = input("Enter a username: ").lower()
         password = input("Enter a password: ")
         firstName = input("Enter a first name: ")
         lastName = input("Enter a last name: ")
         registrationDate = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         if Functions.CheckUsername(username) and Functions.CheckPassword(password) and Functions.CheckStringInput([firstName, lastName]):
-            DbFunctions.ExecQuery(f"INSERT INTO Accounts (Username, Password, FirstName, LastName, RegistrationDate, Type) "
-                                  f"VALUES ('{Functions.Encrypt(username)}', '{Functions.Encrypt(password)}', "
-                                  f"'{Functions.Encrypt(firstName)}', '{Functions.Encrypt(lastName)}', '{registrationDate}', '{accountType}')")
+            cur.execute(
+                "INSERT INTO Accounts (Username, Password, FirstName, LastName, RegistrationDate, Type) VALUES (?, ?, ?, ?, ?, ?);",
+                (
+                    Functions.Encrypt(username), Functions.Encrypt(password), Functions.Encrypt(firstName), Functions.Encrypt(lastName),
+                    registrationDate,
+                    accountType))
+            con.commit()
             print(f"\n{accountType} has been added!\n")
             Functions.LogActivity(currentUser[1], f"Added {accountType}", "", "No")
             return True
-        else:
-            Functions.LogActivity(currentUser[1], f"Failed to add {accountType}",
-                                  f"Input by user: username={username}, password={password}, first name={firstName}, last name={lastName}", "Yes")
-            return False
+
+        Functions.LogActivity(currentUser[1], f"Failed to add {accountType}",
+                              f"Input by user: username={username}, password={password}, first name={firstName}, last name={lastName}", "Yes")
+        return False
 
     @staticmethod
     def AddClient():
@@ -477,17 +479,9 @@ class DbFunctions:
         houseNumber = input("Enter a house number: ")
         zipCode = input("Enter a zip code: ")
         city = ""
-        print("-----------------------------------\n"
-              "1. Rotterdam\n"
-              "2. Amsterdam\n"
-              "3. Den Haag\n"
-              "4. Utrecht\n"
-              "5. Eindhoven\n"
-              "6. Tilburg\n"
-              "7. Groningen\n"
-              "8. Almere\n"
-              "9. Breda\n"
-              "10. Nijmegen\n")
+        print(
+            "-----------------------------------\n1. Rotterdam\n2. Amsterdam\n3. Den Haag\n4. Utrecht\n5. Eindhoven\n6. Tilburg\n7. Groningen\n8. "
+            "Almere\n9. Breda\n10. Nijmegen\n")
         option = input("Choose a city: ")
         while option not in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']:
             option = input("Choose a city: ")
@@ -514,10 +508,11 @@ class DbFunctions:
         emailAddress = input("Enter a email address: ")
         phoneNumber = input("Enter a phone number: +31-6-")
         if Functions.CheckStringInput([fullName, streetName, houseNumber, zipCode, emailAddress]) and Functions.CheckPhoneNumber(phoneNumber):
-            DbFunctions.ExecQuery(f"INSERT INTO Clients (FullName, StreetName, HouseNumber, ZipCode, City, EmailAddress, PhoneNumber) "
-                                  f"VALUES ('{Functions.Encrypt(fullName)}', '{Functions.Encrypt(streetName)}', '{Functions.Encrypt(houseNumber)}', "
-                                  f"'{Functions.Encrypt(zipCode)}', '{Functions.Encrypt(city)}', "
-                                  f"'{Functions.Encrypt(emailAddress)}', '{Functions.Encrypt('+31-6-' + phoneNumber)}')")
+            cur.execute(
+                "INSERT INTO Clients (FullName, StreetName, HouseNumber, ZipCode, City, EmailAddress, PhoneNumber) VALUES (?,?,?,?,?,?,?);",
+                (Functions.Encrypt(fullName), Functions.Encrypt(streetName), Functions.Encrypt(houseNumber), Functions.Encrypt(zipCode),
+                 Functions.Encrypt(city), Functions.Encrypt(emailAddress), Functions.Encrypt('+31-6-' + phoneNumber)))
+            con.commit()
             Functions.LogActivity(currentUser[1], "Added Client", "", "No")
             return True
         Functions.LogActivity(currentUser[1], "Failed to add Client",
@@ -534,10 +529,11 @@ class DbFunctions:
                 firstName = input("Enter a (new) first name: ")
                 lastName = input("Enter a (new) last name: ")
                 if Functions.CheckUsername(username) and Functions.CheckPassword(password) and Functions.CheckStringInput([firstName, lastName]):
-                    DbFunctions.ExecQuery(
-                        f"UPDATE Accounts SET Username = '{Functions.Encrypt(username)}', Password = '{Functions.Encrypt(password)}', "
-                        f"FirstName = '{Functions.Encrypt(firstName)}', LastName = '{Functions.Encrypt(lastName)}' "
-                        f"WHERE Username = '{Functions.Encrypt(oldUsername)}'")
+                    cur.execute(
+                        "UPDATE Accounts SET Username = ?, Password = ?, FirstName = ?, LastName = ? WHERE Username = ?;", (
+                            Functions.Encrypt(username), Functions.Encrypt(password), Functions.Encrypt(firstName), Functions.Encrypt(lastName),
+                            Functions.Encrypt(oldUsername)))
+                    con.commit()
                     print(f"\n{accountType}'s account has been modified\n")
                     Functions.LogActivity(currentUser[1], f"Modified {accountType}", "", "No")
                     return True
@@ -559,17 +555,9 @@ class DbFunctions:
                 houseNumber = input("Enter a (new) house number: ")
                 zipCode = input("Enter a (new) zip code: ")
                 city = ""
-                print("-----------------------------------\n"
-                      "1. Rotterdam\n"
-                      "2. Amsterdam\n"
-                      "3. Den Haag\n"
-                      "4. Utrecht\n"
-                      "5. Eindhoven\n"
-                      "6. Tilburg\n"
-                      "7. Groningen\n"
-                      "8. Almere\n"
-                      "9. Breda\n"
-                      "10. Nijmegen\n")
+                print(
+                    "-----------------------------------\n1. Rotterdam\n2. Amsterdam\n3. Den Haag\n4. Utrecht\n5. Eindhoven\n6. Tilburg\n7. "
+                    "Groningen\n8.Almere\n9. Breda\n10. Nijmegen\n")
                 option = input("Choose a (new) city: ")
                 while option not in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']:
                     option = input("Choose a city: ")
@@ -596,12 +584,13 @@ class DbFunctions:
                 emailAddress = input("Enter a (new) email address: ")
                 phoneNumber = input("Enter a (new) phone number: +31-6-")
                 if Functions.CheckStringInput([fullName, streetName, houseNumber, zipCode, emailAddress]) and Functions.CheckPhoneNumber(phoneNumber):
-                    DbFunctions.ExecQuery(
-                        f"UPDATE Clients SET FullName = '{Functions.Encrypt(fullName)}', StreetName = '{Functions.Encrypt(streetName)}', "
-                        f"HouseNumber = '{Functions.Encrypt(houseNumber)}', ZipCode = '{Functions.Encrypt(zipCode)}', "
-                        f"City = '{Functions.Encrypt(city)}', EmailAddress = '{Functions.Encrypt(emailAddress)}', "
-                        f"PhoneNumber = '{Functions.Encrypt('+31-6-' + phoneNumber)}' "
-                        f"WHERE EmailAddress = '{Functions.Encrypt(oldEmail)}' AND PhoneNumber = '{Functions.Encrypt(oldPhoneNumber)}'")
+                    cur.execute(
+                        "UPDATE Clients SET FullName = ?, StreetName = ?, HouseNumber = ?, ZipCode = ?, "
+                        "City = ?, EmailAddress = ?, PhoneNumber = ? WHERE EmailAddress = ? AND PhoneNumber = ?;",
+                        (Functions.Encrypt(fullName), Functions.Encrypt(streetName), Functions.Encrypt(houseNumber), Functions.Encrypt(zipCode),
+                         Functions.Encrypt(city), Functions.Encrypt(emailAddress), Functions.Encrypt('+31-6-' + phoneNumber),
+                         Functions.Encrypt(oldEmail), Functions.Encrypt(oldPhoneNumber)))
+                    con.commit()
                     print("Client has been modified!")
                     Functions.LogActivity(currentUser[1], "Modified Client", "", "No")
                     return True
@@ -620,7 +609,8 @@ class DbFunctions:
     def DeleteAccount(username, accountType):
         for row in DbFunctions.GetAllAccounts():
             if row[1] == Functions.Encrypt(username.lower()) and row[6] == accountType:
-                DbFunctions.ExecQuery(f"DELETE FROM Accounts WHERE Username = '{Functions.Encrypt(username.lower())}'")
+                cur.execute("DELETE FROM Accounts WHERE Username = ?;", (Functions.Encrypt(username.lower)))
+                con.commit()
                 print(f"\n{accountType}'s account has been deleted!\n")
                 Functions.LogActivity(currentUser[1], f"Deleted {accountType}", f"User {username} is deleted", "No")
                 return True
@@ -633,8 +623,9 @@ class DbFunctions:
     def DeleteClient(email, phoneNumber):
         for row in DbFunctions.GetAllClients():
             if row[6] == Functions.Encrypt(email) and row[7] == Functions.Encrypt(phoneNumber):
-                DbFunctions.ExecQuery(f"DELETE FROM Clients WHERE EmailAddress = '{Functions.Encrypt(email)}' "
-                                      f"AND PhoneNumber = '{Functions.Encrypt(phoneNumber)}'")
+                cur.execute("DELETE FROM Clients WHERE EmailAddress = ? AND PhoneNumber = ?;",
+                            (Functions.Encrypt(email), Functions.Encrypt(phoneNumber)))
+                con.commit()
                 print("\nClient has been deleted!\n")
                 Functions.LogActivity(currentUser[1], "Deleted Client", f"email:{email}, phoneNumber:{phoneNumber}", "No")
                 return True
@@ -647,8 +638,9 @@ class DbFunctions:
     def UpdatePassword():
         newPassword = input("Enter your new password: ")
         if Functions.CheckPassword(newPassword):
-            DbFunctions.ExecQuery(
-                f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(currentUser[1])}'")
+            cur.execute(
+                "UPDATE Accounts SET Password = ? WHERE Username = ?;", (Functions.Encrypt(newPassword), Functions.Encrypt(currentUser[1])))
+            con.commit()
             print("\nYour password has been changed!\n")
             Functions.LogActivity(currentUser[1], "Updated Password", "", "No")
             return True
@@ -665,8 +657,9 @@ class DbFunctions:
             return False
         for row in DbFunctions.GetAllAccounts():
             if row[1] == Functions.Encrypt(username.lower()) and row[6] == accountType:
-                DbFunctions.ExecQuery(
-                    f"UPDATE Accounts SET Password = '{Functions.Encrypt(newPassword)}' WHERE Username = '{Functions.Encrypt(username)}'")
+                cur.execute(
+                    "UPDATE Accounts SET Password = ? WHERE Username = ?;", (Functions.Encrypt(newPassword), Functions.Encrypt(username)))
+                con.commit()
                 print(f"\n{accountType}'s password has been changed!\n")
                 Functions.LogActivity(currentUser[1], "Reset password",
                                       f"Reset the password of {username} with account type {accountType} to {newPassword}", "No")
