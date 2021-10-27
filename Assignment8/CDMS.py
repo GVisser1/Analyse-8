@@ -1,6 +1,9 @@
-import sqlite3
-import zipfile
 import json
+import sqlite3
+import string
+import zipfile
+import re
+from datetime import datetime
 from secrets import compare_digest
 
 global current_user
@@ -8,16 +11,18 @@ con = sqlite3.connect('CDMS.db')
 cur = con.cursor()
 logfile = 'log.json'
 choice_input = 'Put in your choice: '
+max_failed_attempts = 'Too many failed attempts\n'
 
 with open(logfile, 'r') as logs:
     logData = json.load(logs)
 
 
 def sign_in():
-    import Functions, DBFunctions
     global current_user
+    # TODO Add max attempts
     username = input("Enter your username: ").lower()
     password = input("Enter your password: ")
+    allAccounts = DBFunctions.get_all_accounts()
     for row in DBFunctions.get_all_accounts():
         if username == Functions.decrypt(row[1]) and compare_digest(password, Functions.decrypt(row[2])):
             print("\nSigned in successfully\n")
@@ -29,6 +34,15 @@ def sign_in():
     Functions.log_activity(Functions.encrypt(username), "Unsuccessful login",
                            f"Password {password} is tried in combination with Username: {username}", "Yes")
     sign_in()
+
+
+def lock_out_user():
+    print("Too many failed attempts!\nYou are now locked out of the system\nPress 'q' to quit\n")
+    option = input(choice_input)
+    while option != 'q':
+        option = input(choice_input)
+    if option == 'q':
+        quit()
 
 
 def check_access_level():
@@ -76,7 +90,6 @@ class Adviser:
 
     @staticmethod
     def add_client():
-        import DBFunctions
         while True:
             if DBFunctions.add_client():
                 break
@@ -85,7 +98,6 @@ class Adviser:
 
     @staticmethod
     def retrieve_client_info():
-        import Functions, DBFunctions
         full_name = input("\nEnter the full name of the client whose information you want to retrieve: ")
         print(f"-------------------------------------\n"
               f"Results for clients with the full name: {full_name}\n")
@@ -106,7 +118,6 @@ class Adviser:
 
     @staticmethod
     def modify_client():
-        import DBFunctions
         while True:
             old_email = input("\nEnter the email address of the client you want to modify: ")
             old_phone_number = "+31-6-" + input("Enter a phone number: +31-6-")
@@ -116,7 +127,6 @@ class Adviser:
 
     @staticmethod
     def update_password():
-        import Functions, DBFunctions
         while True:
             old_password = input("Enter your old password: ")
             if Functions.encrypt(old_password) == current_user[2]:
@@ -132,7 +142,6 @@ class Adviser:
 class SystemAdmin:
     @staticmethod
     def show_menu():
-        import Functions
         count = 0
         for row in logData:
             if row["Read"] == "False" and Functions.decrypt(row["Suspicious"]) == "Yes":
@@ -217,8 +226,6 @@ class SystemAdmin:
 
     @staticmethod
     def check_users():
-        import DBFunctions
-        import Functions
         all_accounts = DBFunctions.get_all_accounts()
         print("-------------------------------------\n"
               "|Username           -           Role|\n"
@@ -231,7 +238,6 @@ class SystemAdmin:
 
     @staticmethod
     def add_adviser():
-        import DBFunctions
         while True:
             if DBFunctions.add_account("Adviser"):
                 break
@@ -239,7 +245,6 @@ class SystemAdmin:
 
     @staticmethod
     def modify_adviser():
-        import DBFunctions
         while True:
             username = input("\nEnter the username of the adviser whose account you want to modify: ")
             if DBFunctions.modify_account(username, "Adviser"):
@@ -248,7 +253,6 @@ class SystemAdmin:
 
     @staticmethod
     def delete_adviser():
-        import DBFunctions
         while True:
             username = input("\nEnter the username of the adviser that you want to delete: ")
             if DBFunctions.delete_account(username, "Adviser"):
@@ -257,7 +261,6 @@ class SystemAdmin:
 
     @staticmethod
     def reset_adviser_password():
-        import DBFunctions
         while True:
             username = input("\nEnter the username of the adviser whose password you want to reset: ")
             if DBFunctions.reset_password(username, "Adviser"):
@@ -266,7 +269,6 @@ class SystemAdmin:
 
     @staticmethod
     def delete_client():
-        import DBFunctions
         while True:
             email = input("\nEnter the email of the client that you want to delete: ")
             phone_number = "+31-6-" + input("Enter the phone number of the client that you want to delete: +31-6-")
@@ -276,7 +278,6 @@ class SystemAdmin:
 
     @staticmethod
     def create_backup():
-        import Functions
         list_files = ['CDMS.db', logfile]
         with zipfile.ZipFile('Backups.zip', 'w') as zipFile:
             for file in list_files:
@@ -287,7 +288,6 @@ class SystemAdmin:
 
     @staticmethod
     def view_log_files():
-        import Functions
         print("-----------------------------------\n"
               "|               MENU              |\n"
               "-----------------------------------\n"
@@ -332,8 +332,6 @@ class SystemAdmin:
 
     @staticmethod
     def update_password():
-        import DBFunctions
-        import Functions
         while True:
             old_password = input("Enter your old password: ")
             if Functions.encrypt(old_password) == current_user[2]:
@@ -349,7 +347,6 @@ class SystemAdmin:
 class SuperAdmin:
     @staticmethod
     def show_menu():
-        import Functions
         count = 0
         for row in logData:
             if row["Read"] == "False" and Functions.decrypt(row["Suspicious"]) == "Yes":
@@ -413,7 +410,6 @@ class SuperAdmin:
 
     @staticmethod
     def add_admin():
-        import DBFunctions
         while True:
             if DBFunctions.add_account("SystemAdmin"):
                 break
@@ -421,7 +417,6 @@ class SuperAdmin:
 
     @staticmethod
     def modify_admin():
-        import DBFunctions
         while True:
             username = input("\nEnter the username of the admin whose account you want to modify: ")
             if DBFunctions.modify_account(username, "SystemAdmin"):
@@ -430,7 +425,6 @@ class SuperAdmin:
 
     @staticmethod
     def delete_admin():
-        import DBFunctions
         while True:
             username = input("\nEnter the username of the admin that you want to delete: ")
             if DBFunctions.delete_account(username, "SystemAdmin"):
@@ -439,12 +433,477 @@ class SuperAdmin:
 
     @staticmethod
     def reset_admin_password():
-        import DBFunctions
         while True:
             username = input("\nEnter the username of the admin whose password you want to reset: ")
             if DBFunctions.reset_password(username, "SystemAdmin"):
                 break
         check_access_level()
+
+
+class Functions:
+    @staticmethod
+    def encrypt(text):
+        encrypted = ""
+        for c in text:
+            if c.isupper():
+                c_index = ord(c) - ord('A')
+                c_shifted = (c_index + 4) % 26 + ord('A')
+                c_new = chr(c_shifted)
+                encrypted += c_new
+            elif c.islower():
+                c_index = ord(c) - ord('a')
+                c_shifted = (c_index + 4) % 26 + ord('a')
+                c_new = chr(c_shifted)
+                encrypted += c_new
+            elif c.isdigit():
+                c_new = (int(c) + 4) % 10
+                encrypted += str(c_new)
+            else:
+                encrypted += c
+        return encrypted
+
+    @staticmethod
+    def decrypt(encrypted_text):
+        decrypted = ""
+        for c in encrypted_text:
+            if c.isupper():
+                c_index = ord(c) - ord('A')
+                c_og_pos = (c_index - 4) % 26 + ord('A')
+                c_og = chr(c_og_pos)
+                decrypted += c_og
+            elif c.islower():
+                c_index = ord(c) - ord('a')
+                c_og_pos = (c_index - 4) % 26 + ord('a')
+                c_og = chr(c_og_pos)
+                decrypted += c_og
+            elif c.isdigit():
+                c_og = (int(c) - 4) % 10
+                decrypted += str(c_og)
+            else:
+                decrypted += c
+        return decrypted
+
+    @staticmethod
+    def input_username(input_message):
+        attempts = 0
+        while attempts <= 3:
+            input_value = input(f"{input_message}: ")
+            if Functions.check_username(input_value):
+                return input_value
+            else:
+                attempts += 1
+        print(max_failed_attempts)
+        # TODO add log
+        return_to_menu()
+
+    @staticmethod
+    def input_password(input_message):
+        attempts = 0
+        while attempts <= 3:
+            input_value = input(f"{input_message}: ")
+            if Functions.check_password(input_value):
+                return input_value
+            else:
+                attempts += 1
+        print(max_failed_attempts)
+        # TODO add log
+        return_to_menu()
+
+    @staticmethod
+    def input_email(input_message):
+        attempts = 0
+        while attempts <= 3:
+            input_value = input(f"{input_message}: ")
+            if Functions.check_email(input_value):
+                return input_value
+            else:
+                attempts += 1
+        print(max_failed_attempts)
+        # TODO add log
+        return_to_menu()
+
+    @staticmethod
+    def input_zip_code(input_message):
+        attempts = 0
+        while attempts <= 3:
+            input_value = input(f"{input_message}: ")
+            if Functions.check_zip_code(input_value):
+                return input_value
+            else:
+                attempts += 1
+        print(max_failed_attempts)
+        # TODO add log
+        return_to_menu()
+
+    @staticmethod
+    def input_phone_number(input_message):
+        attempts = 0
+        while attempts <= 3:
+            input_value = input(f"{input_message}")
+            if Functions.check_phone_number(input_value):
+                return input_value
+            else:
+                attempts += 1
+        print(max_failed_attempts)
+        # TODO add log
+        return_to_menu()
+
+    @staticmethod
+    def input_string(input_message):
+        attempts = 0
+        while attempts <= 3:
+            input_value = input(f"{input_message}: ")
+            if Functions.check_string_input(input_value):
+                return input_value
+            else:
+                attempts += 1
+        print(max_failed_attempts)
+        # TODO add log
+        return_to_menu()
+
+    @staticmethod
+    def check_username(username):
+        username_whitelist = list(string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + ".")
+        for row in DBFunctions.get_all_accounts():
+            if row[1] == Functions.encrypt(username):
+                print("Username already exists!\n")
+                return False
+        if not username[0].isupper() and not username.islower():
+            print("Username must start with a letter.\n")
+            return False
+        if len(username) < 5 or len(username) > 20:
+            print("Username must have a length of at least 5 characters and must be no longer than 20 characters.\n")
+            return False
+        for i in username:
+            if i not in username_whitelist:
+                print("Username contains invalid characters.\n")
+                return False
+        return True
+
+    @staticmethod
+    def check_password(password):
+        if len(password) < 8 or len(password) > 30:
+            print("Password must have a length of at least 8 characters and must be no longer than 30 characters.\n")
+            return False
+        checklist = [False, False, False, False]
+        for i in password:
+            if i.isupper():
+                checklist[0] = True
+            elif i.islower():
+                checklist[1] = True
+            elif i.isdigit():
+                checklist[2] = True
+            else:
+                checklist[3] = True
+        if False in checklist:
+            print("Password must contain at least one lowercase letter, one uppercase letter, one digit, and one special character.\n")
+            return False
+        return True
+
+    @staticmethod
+    def check_phone_number(phone_number):
+        if len(phone_number) != 8:
+            print('Phone number is out of range.\n')
+            return False
+        try:
+            int(phone_number)
+            return True
+        except ValueError:
+            print("Phone number is not an integer. It's a string\n")
+            return False
+
+    @staticmethod
+    def check_email(email):
+        if len(email) > 50:
+            print("Email must not be longer than 50 characters.\n")
+            return False
+        if not re.match("(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email):
+            print("Email is invalid\n")
+            return False
+        return True
+        # TODO add log
+
+    @staticmethod
+    def check_zip_code(zip_code):
+        if not re.match("(^[0-9]{4}[A-Z]{2}$)", zip_code):
+            print("Zip code is invalid\n")
+            return False
+        return True
+        # TODO add log
+
+    @staticmethod
+    def check_string_input(input_list):
+        input_whitelist = list(string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + "." + "@" + "!" + "+" + " ")
+        for input in input_list:
+            if len(input) > 50:
+                print("Input must not be longer than 50 characters.\n")
+                return False
+            for i in input:
+                if i not in input_whitelist:
+                    print("Input contains invalid characters.\n")
+                    return False
+            return True
+
+    @staticmethod
+    def log_activity(username, activity, information, sus):
+        date_time_current = datetime.now()
+
+        count = str(len(logData) + 1)
+
+        date = str(date_time_current.day) + "-" + str(date_time_current.month) + "-" + str(date_time_current.year)
+        time = str(date_time_current.hour) + ":" + str(date_time_current.minute) + ":" + str(date_time_current.second)
+
+        with open(logfile, 'r+') as logs:
+            logData.append({
+                "Id": count,
+                "Username": username,
+                "Date": Functions.encrypt(date),
+                "Time": Functions.encrypt(time),
+                "Activity": Functions.encrypt(activity),
+                "Additional Information": Functions.encrypt(information),
+                "Suspicious": Functions.encrypt(sus),
+                "Read": "False"
+            })
+            logs.seek(0)
+            json.dump(logData, logs, indent=4)
+            logs.truncate()
+
+
+class DBFunctions:
+    @staticmethod
+    def get_all_accounts():
+        cur.execute("SELECT * FROM Accounts")
+        return cur.fetchall()
+
+    @staticmethod
+    def get_all_clients():
+        cur.execute("SELECT * FROM Clients")
+        return cur.fetchall()
+
+    @staticmethod
+    def add_account(account_type):
+        print(f"\nCreate an account for a new {account_type}.\n")
+        username = Functions.input_username("Enter a username")
+        password = Functions.input_password("Enter a password")
+        first_name = Functions.input_string("Enter a first name")
+        last_name = Functions.input_string("Enter a last name")
+        registration_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        if Functions.check_username(username) and Functions.check_password(password) and Functions.check_string_input([first_name, last_name]):
+            cur.execute(
+                "INSERT INTO Accounts (Username, Password, FirstName, LastName, RegistrationDate, Type) VALUES (?, ?, ?, ?, ?, ?);",
+                (
+                    Functions.encrypt(username), Functions.encrypt(password), Functions.encrypt(first_name), Functions.encrypt(last_name),
+                    registration_date,
+                    account_type))
+            con.commit()
+            print(f"\n{account_type} has been added!\n")
+            Functions.log_activity(current_user[1], f"Added {account_type}", "", "No")
+            return True
+
+        Functions.log_activity(current_user[1], f"Failed to add {account_type}",
+                               f"Input by current_user: username={username}, password={password}, first name={first_name}, last name={last_name}",
+                               "Yes")
+        return False
+
+    @staticmethod
+    def add_client():
+        full_name = Functions.input_string("Enter a full name")
+        street_name = Functions.input_string("Enter a street name")
+        house_number = Functions.input_string("Enter a house number")
+        zip_code = Functions.input_zip_code("Enter a zip code")
+        city = ""
+        print(
+            "-----------------------------------\n1. Rotterdam\n2. Amsterdam\n3. Den Haag\n4. Utrecht\n5. Eindhoven\n6. Tilburg\n7. Groningen\n8. "
+            "Almere\n9. Breda\n10. Nijmegen\n")
+        option = input("Choose a city: ")
+        while option not in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']:
+            option = input("Choose a city: ")
+        if option == '1':
+            city = "Rotterdam"
+        elif option == '2':
+            city = "Amsterdam"
+        elif option == '3':
+            city = "Den Haag"
+        elif option == '4':
+            city = "Utrecht"
+        elif option == '5':
+            city = "Eindhoven"
+        elif option == '6':
+            city = "Tilburg"
+        elif option == '7':
+            city = "Groningen"
+        elif option == '8':
+            city = "Almere"
+        elif option == '9':
+            city = "Breda"
+        elif option == '10':
+            city = "Nijmegen"
+        email_address = Functions.input_email("Enter a email address")
+        phone_number = Functions.input_phone_number("Enter a phone number: +31-6-")
+        if Functions.check_string_input([full_name, street_name, house_number, zip_code, email_address]) and Functions.check_phone_number(
+                phone_number):
+            cur.execute(
+                "INSERT INTO Clients (FullName, StreetName, HouseNumber, ZipCode, City, EmailAddress, PhoneNumber) VALUES (?,?,?,?,?,?,?);",
+                (Functions.encrypt(full_name), Functions.encrypt(street_name), Functions.encrypt(house_number), Functions.encrypt(zip_code),
+                 Functions.encrypt(city), Functions.encrypt(email_address), Functions.encrypt('+31-6-' + phone_number)))
+            con.commit()
+            Functions.log_activity(current_user[1], "Added Client", "", "No")
+            return True
+        Functions.log_activity(current_user[1], "Failed to add Client",
+                               f"Input by current_user: full name: {full_name}, street name & house number: {street_name} {house_number}, "
+                               f"zip code: {zip_code}, email address: {email_address}, phone number: {phone_number}", "Yes")
+        return False
+
+    @staticmethod
+    def modify_account(old_username, account_type):
+        for row in DBFunctions.get_all_accounts():
+            if row[1] == Functions.encrypt(old_username.lower()) and row[6] == account_type:
+                username = Functions.input_username("Enter a (new) username").lower()
+                password = Functions.input_password("Enter a (new) password")
+                first_name = Functions.input_string("Enter a (new) first name")
+                last_name = Functions.input_string("Enter a (new) last name")
+                if Functions.check_username(username) and Functions.check_password(password) and Functions.check_string_input(
+                        [first_name, last_name]):
+                    cur.execute(
+                        "UPDATE Accounts SET Username = ?, Password = ?, FirstName = ?, LastName = ? WHERE Username = ?;", (
+                            Functions.encrypt(username), Functions.encrypt(password), Functions.encrypt(first_name), Functions.encrypt(last_name),
+                            Functions.encrypt(old_username)))
+                    con.commit()
+                    print(f"\n{account_type}'s account has been modified\n")
+                    Functions.log_activity(current_user[1], f"Modified {account_type}", "", "No")
+                    return True
+                Functions.log_activity(current_user[1], f"Failed to modify {account_type}",
+                                       f"Input by current_user: username = {username}, password = {password}, "
+                                       f"first name = {first_name}, last name = {last_name}", "Yes")
+                return False
+        Functions.log_activity(current_user[1], "Failed to modify account",
+                               f"Input by current_user: old username= {old_username}", "Yes")
+        print(f"No {account_type} can be found with the given username!\n")
+        return False
+
+    @staticmethod
+    def modify_client(old_email, old_phone_number):
+        for row in DBFunctions.get_all_clients():
+            if row[6] == Functions.encrypt(old_email) and row[7] == Functions.encrypt(old_phone_number):
+                full_name = Functions.input_string("Enter a (new) full name")
+                street_name = Functions.input_string("Enter a (new) street name")
+                house_number = Functions.input_string("Enter a (new) house number")
+                zip_code = Functions.input_zip_code("Enter a (new) zip code")
+                city = ""
+                print(
+                    "-----------------------------------\n1. Rotterdam\n2. Amsterdam\n3. Den Haag\n4. Utrecht\n5. Eindhoven\n6. Tilburg\n7. "
+                    "Groningen\n8.Almere\n9. Breda\n10. Nijmegen\n")
+                option = input("Choose a (new) city: ")
+                while option not in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']:
+                    option = input("Choose a city: ")
+                if option == '1':
+                    city = "Rotterdam"
+                elif option == '2':
+                    city = "Amsterdam"
+                elif option == '3':
+                    city = "Den Haag"
+                elif option == '4':
+                    city = "Utrecht"
+                elif option == '5':
+                    city = "Eindhoven"
+                elif option == '6':
+                    city = "Tilburg"
+                elif option == '7':
+                    city = "Groningen"
+                elif option == '8':
+                    city = "Almere"
+                elif option == '9':
+                    city = "Breda"
+                elif option == '10':
+                    city = "Nijmegen"
+                email_address = Functions.input_email("Enter a (new) email address")
+                phone_number = Functions.input_phone_number("Enter a (new) phone number: +31-6-")
+                if Functions.check_string_input([full_name, street_name, house_number, zip_code, email_address]) and Functions.check_phone_number(
+                        phone_number):
+                    cur.execute(
+                        "UPDATE Clients SET FullName = ?, StreetName = ?, HouseNumber = ?, ZipCode = ?, "
+                        "City = ?, EmailAddress = ?, PhoneNumber = ? WHERE EmailAddress = ? AND PhoneNumber = ?;",
+                        (Functions.encrypt(full_name), Functions.encrypt(street_name), Functions.encrypt(house_number), Functions.encrypt(zip_code),
+                         Functions.encrypt(city), Functions.encrypt(email_address), Functions.encrypt('+31-6-' + phone_number),
+                         Functions.encrypt(old_email), Functions.encrypt(old_phone_number)))
+                    con.commit()
+                    print("Client has been modified!")
+                    Functions.log_activity(current_user[1], "Modified Client", "", "No")
+                    return True
+                else:
+                    Functions.log_activity(current_user[1], "Failed to modify Client",
+                                           f"Input by current_user: full name: {full_name}, street name & house number: {street_name} {house_number}, "
+                                           f"zip code: {zip_code}, email address: {email_address}, phone number: {phone_number}", "Yes")
+                    return False
+            else:
+                Functions.log_activity(current_user[1], "Failed to modify Client",
+                                       f"Input by current_user: old email address: {old_email}, old phone number: {old_phone_number}", "Yes")
+                print("No client can be found with the given email address and/or phone number!\n")
+                return False
+
+    @staticmethod
+    def delete_account(username, account_type):
+        for row in DBFunctions.get_all_accounts():
+            if row[1] == Functions.encrypt(username.lower()) and row[6] == account_type:
+                cur.execute("DELETE FROM Accounts WHERE Username = ?;", (Functions.encrypt(username.lower)))
+                con.commit()
+                print(f"\n{account_type}'s account has been deleted!\n")
+                Functions.log_activity(current_user[1], f"Deleted {account_type}", f"User {username} is deleted", "No")
+                return True
+        print(f"\nNo {account_type} can be found with the given username!\n")
+        Functions.log_activity(current_user[1], f"Failed to delete {account_type}",
+                               f"User not found with data: username={username}, account_type={account_type}", "Yes")
+        return False
+
+    @staticmethod
+    def delete_client(email, phone_number):
+        for row in DBFunctions.get_all_clients():
+            if row[6] == Functions.encrypt(email) and row[7] == Functions.encrypt(phone_number):
+                cur.execute("DELETE FROM Clients WHERE EmailAddress = ? AND PhoneNumber = ?;",
+                            (Functions.encrypt(email), Functions.encrypt(phone_number)))
+                con.commit()
+                print("\nClient has been deleted!\n")
+                Functions.log_activity(current_user[1], "Deleted Client", f"email:{email}, phone_number:{phone_number}", "No")
+                return True
+        print("\nNo client can be found with the given email and/or phone number!\n")
+        Functions.log_activity(current_user[1], "Failed to delete client",
+                               f"No client can be found with email={email} and phone number={phone_number}", "Yes")
+        return False
+
+    @staticmethod
+    def update_password():
+        new_password = Functions.input_password("Enter your new password: ")
+        if Functions.check_password(new_password):
+            cur.execute(
+                "UPDATE Accounts SET Password = ? WHERE Username = ?;", (Functions.encrypt(new_password), Functions.encrypt(current_user[1])))
+            con.commit()
+            print("\nYour password has been changed!\n")
+            Functions.log_activity(current_user[1], "Updated Password", "", "No")
+            return True
+        else:
+            Functions.log_activity(current_user[1], "Failed to Update Password", f"New password did not meet the criteria: {new_password}", "Yes")
+            return False
+
+    @staticmethod
+    def reset_password(username, account_type):
+        new_password = Functions.input_password("Enter a new password: ")
+        if not Functions.check_password(new_password):
+            Functions.log_activity(current_user[1], f"Failed to reset password",
+                                   f"User not found with data: username={username}, account_type={account_type}", "Yes")
+            return False
+        for row in DBFunctions.get_all_accounts():
+            if row[1] == Functions.encrypt(username.lower()) and row[6] == account_type:
+                cur.execute(
+                    "UPDATE Accounts SET Password = ? WHERE Username = ?;", (Functions.encrypt(new_password), Functions.encrypt(username)))
+                con.commit()
+                print(f"\n{account_type}'s password has been changed!\n")
+                Functions.log_activity(current_user[1], "Reset password",
+                                       f"Reset the password of {username} with account type {account_type} to {new_password}", "No")
+                return True
+        print(f"No {account_type.lower()} can be found with the given username!")
+        Functions.log_activity(current_user[1], f"Failed to reset password",
+                               f"User not found with data: username={username}, account_type={account_type}", "Yes")
+        return False
 
 
 print("---------------------------------------------------\n"
