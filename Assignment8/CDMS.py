@@ -19,25 +19,30 @@ with open(logfile, 'r') as logs:
 
 def sign_in():
     global current_user
-    # TODO Add max attempts
     username = input("Enter your username: ").lower()
     password = input("Enter your password: ")
     allAccounts = DBFunctions.get_all_accounts()
-    for row in DBFunctions.get_all_accounts():
-        if username == Functions.decrypt(row[1]) and compare_digest(password, Functions.decrypt(row[2])):
+    i = 0
+    attempts = 0
+    while i < len(allAccounts):
+        if username != Functions.decrypt(allAccounts[i][1]) or password != Functions.decrypt(allAccounts[i][2]):
+            attempts += 1
+            print("\nUsername and/or password is incorrect\n")
+            username = input("Enter your username: ").lower()
+            password = input("Enter your password: ")
+        else:
             print("\nSigned in successfully\n")
-            current_user = row
+            current_user = allAccounts[i]
             Functions.log_activity(current_user[1], "Logged in", "", "No")
             check_access_level()
-    print("\nUsername and/or password is incorrect\n")
-    current_user = -1
-    Functions.log_activity(Functions.encrypt(username), "Unsuccessful login",
-                           f"Password {password} is tried in combination with Username: {username}", "Yes")
-    sign_in()
+        if attempts >= 3:
+            Functions.log_activity(f"{Functions.decrypt('undefined')} ", "Exceeded the maximum amount of sign in attempts",
+                                   f"Password: {password} is tried in combination with Username: {username}", "Yes")
+            lock_out_user()
 
 
 def lock_out_user():
-    print("Too many failed attempts!\nYou are now locked out of the system\nPress 'q' to quit\n")
+    print("\nToo many failed attempts!\nYou are now locked out of the system\nPress 'q' to quit\n")
     option = input(choice_input)
     while option != 'q':
         option = input(choice_input)
@@ -645,7 +650,6 @@ class Functions:
             print("Email is invalid\n")
             return False
         return True
-        # TODO add log
 
     @staticmethod
     def check_zip_code(zip_code):
@@ -653,7 +657,6 @@ class Functions:
             print("Zip code is invalid\n")
             return False
         return True
-        # TODO add log
 
     @staticmethod
     def check_string_input(input_list):
