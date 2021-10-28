@@ -102,23 +102,23 @@ class Adviser:
 
     @staticmethod
     def retrieve_client_info():
-        full_name = input(
-            "\nEnter the full name of the client whose information you want to retrieve: ")
+        name = input(
+            "\nEnter the name of the client whose information you want to retrieve: ")
         print(f"-------------------------------------\n"
-              f"Results for clients with the full name: {full_name}\n")
+              f"Search results: {name}\n")
         count = 0
-        for row in DBFunctions.get_all_clients():
-            if row[1] == Functions.encrypt(full_name):
-                count += 1
-                print(f"Fullname: {Functions.decrypt(row[1])}\n"
-                      f"Street & house number: {Functions.decrypt(row[2])}, {Functions.decrypt(row[3])}\n"
-                      f"Zip code & city: {Functions.decrypt(row[4])}, {Functions.decrypt(row[5])}\n"
-                      f"Email Address: {Functions.decrypt(row[6])}\n"
-                      f"Phone Number: {Functions.decrypt(row[7])}\n"
-                      f"\n-------------------------------------\n")
+        for row in DBFunctions.get_clients_by_name(name):
+            # if row[1] == Functions.encrypt(name):
+            count += 1
+            print(f"Fullname: {Functions.decrypt(row[1])}\n"
+                  f"Street & house number: {Functions.decrypt(row[2])}, {Functions.decrypt(row[3])}\n"
+                  f"Zip code & city: {Functions.decrypt(row[4])}, {Functions.decrypt(row[5])}\n"
+                  f"Email Address: {Functions.decrypt(row[6])}\n"
+                  f"Phone Number: {Functions.decrypt(row[7])}\n"
+                  f"\n-------------------------------------\n")
         if count == 0:
             print(
-                f"No client has been found with the full name: {full_name}!\n")
+                f"No client has been found with the given name: {name}!\n")
         Functions.log_activity(
             current_user[1], "Retrieved Client info", "", "No")
         return_to_menu()
@@ -707,6 +707,12 @@ class DBFunctions:
     @staticmethod
     def get_all_clients():
         cur.execute("SELECT * FROM Clients")
+        return cur.fetchall()
+
+    @staticmethod
+    def get_clients_by_name(name):
+        cur.execute("SELECT * FROM Clients WHERE FullName LIKE ?;",
+                    ('%'+Functions.encrypt(name)+'%',))
         return cur.fetchall()
 
     @staticmethod
