@@ -98,7 +98,8 @@ class Adviser:
 
     @staticmethod
     def retrieve_client_info():
-        full_name = input("\nEnter the full name of the client whose information you want to retrieve: ")
+        full_name = input(
+            "\nEnter the full name of the client whose information you want to retrieve: ")
         print(f"-------------------------------------\n"
               f"Results for clients with the full name: {full_name}\n")
         count = 0
@@ -112,14 +113,17 @@ class Adviser:
                       f"Phone Number: {Functions.decrypt(row[7])}\n"
                       f"\n-------------------------------------\n")
         if count == 0:
-            print(f"No client has been found with the full name: {full_name}!\n")
-        Functions.log_activity(current_user[1], "Retrieved Client info", "", "No")
+            print(
+                f"No client has been found with the full name: {full_name}!\n")
+        Functions.log_activity(
+            current_user[1], "Retrieved Client info", "", "No")
         return_to_menu()
 
     @staticmethod
     def modify_client():
         while True:
-            old_email = input("\nEnter the email address of the client you want to modify: ")
+            old_email = input(
+                "\nEnter the email address of the client you want to modify: ")
             old_phone_number = "+31-6-" + input("Enter a phone number: +31-6-")
             if DBFunctions.modify_client(old_email, old_phone_number):
                 break
@@ -231,7 +235,8 @@ class SystemAdmin:
               "|Username           -           Role|\n"
               "-------------------------------------\n")
         for row in all_accounts:
-            print(f"{Functions.decrypt(row[1])}           -           {row[6]}\n")
+            print(
+                f"{Functions.decrypt(row[1])}           -           {row[6]}\n")
         print("-------------------------------------\n")
         Functions.log_activity(current_user[1], "Checked users", "", "No")
         return_to_menu()
@@ -246,7 +251,8 @@ class SystemAdmin:
     @staticmethod
     def modify_adviser():
         while True:
-            username = input("\nEnter the username of the adviser whose account you want to modify: ")
+            username = input(
+                "\nEnter the username of the adviser whose account you want to modify: ")
             if DBFunctions.modify_account(username, "Adviser"):
                 break
         check_access_level()
@@ -254,7 +260,8 @@ class SystemAdmin:
     @staticmethod
     def delete_adviser():
         while True:
-            username = input("\nEnter the username of the adviser that you want to delete: ")
+            username = input(
+                "\nEnter the username of the adviser that you want to delete: ")
             if DBFunctions.delete_account(username, "Adviser"):
                 break
         check_access_level()
@@ -262,7 +269,8 @@ class SystemAdmin:
     @staticmethod
     def reset_adviser_password():
         while True:
-            username = input("\nEnter the username of the adviser whose password you want to reset: ")
+            username = input(
+                "\nEnter the username of the adviser whose password you want to reset: ")
             if DBFunctions.reset_password(username, "Adviser"):
                 break
         check_access_level()
@@ -270,8 +278,11 @@ class SystemAdmin:
     @staticmethod
     def delete_client():
         while True:
-            email = input("\nEnter the email of the client that you want to delete: ")
-            phone_number = "+31-6-" + input("Enter the phone number of the client that you want to delete: +31-6-")
+            email = input(
+                "\nEnter the email of the client that you want to delete: ")
+            phone_number = "+31-6-" + \
+                input(
+                    "Enter the phone number of the client that you want to delete: +31-6-")
             if DBFunctions.delete_client(email, phone_number):
                 break
         check_access_level()
@@ -283,7 +294,8 @@ class SystemAdmin:
             for file in list_files:
                 zipFile.write(file)
         print("\nSuccessfully made a backup\n")
-        Functions.log_activity(current_user[1], "Successfully made a backup", "", "No")
+        Functions.log_activity(
+            current_user[1], "Successfully made a backup", "", "No")
         check_access_level()
 
     @staticmethod
@@ -299,7 +311,8 @@ class SystemAdmin:
         while option not in ['1', '2', '3']:
             option = input(choice_input)
         if option == '1':
-            print("Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
+            print(
+                "Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
             for row in logData:
                 print(row["Id"] + " | " +
                       Functions.decrypt(row["Username"]) + " | " +
@@ -313,7 +326,8 @@ class SystemAdmin:
                     json.dump(logData, logs, indent=4)
             return_to_menu()
         elif option == '2':
-            print("Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
+            print(
+                "Id | Username | Date | Time | Activity | Additional Information | Suspicious\n")
             for row in logData:
                 if row["Read"] == "False" and Functions.decrypt(row["Suspicious"]) == "Yes":
                     print(row["Id"] + " | " +
@@ -418,7 +432,8 @@ class SuperAdmin:
     @staticmethod
     def modify_admin():
         while True:
-            username = input("\nEnter the username of the admin whose account you want to modify: ")
+            username = input(
+                "\nEnter the username of the admin whose account you want to modify: ")
             if DBFunctions.modify_account(username, "SystemAdmin"):
                 break
         check_access_level()
@@ -426,7 +441,8 @@ class SuperAdmin:
     @staticmethod
     def delete_admin():
         while True:
-            username = input("\nEnter the username of the admin that you want to delete: ")
+            username = input(
+                "\nEnter the username of the admin that you want to delete: ")
             if DBFunctions.delete_account(username, "SystemAdmin"):
                 break
         check_access_level()
@@ -434,7 +450,8 @@ class SuperAdmin:
     @staticmethod
     def reset_admin_password():
         while True:
-            username = input("\nEnter the username of the admin whose password you want to reset: ")
+            username = input(
+                "\nEnter the username of the admin whose password you want to reset: ")
             if DBFunctions.reset_password(username, "SystemAdmin"):
                 break
         check_access_level()
@@ -493,7 +510,8 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        # TODO add log
+        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+                               f"Last given input for username: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
@@ -506,7 +524,8 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        # TODO add log
+        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+                               f"Last given input for password: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
@@ -519,7 +538,8 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        # TODO add log
+        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+                               f"Last given input for email: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
@@ -532,7 +552,8 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        # TODO add log
+        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+                               f"Last given input for zip code: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
@@ -545,25 +566,28 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        # TODO add log
+        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+                               f"Last given input for phone number: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
-    def input_string(input_message):
+    def input_string(input_type):
         attempts = 0
         while attempts <= 3:
-            input_value = input(f"{input_message}: ")
+            input_value = input(f"Enter a {input_type}: ")
             if Functions.check_string_input(input_value):
                 return input_value
             else:
                 attempts += 1
         print(max_failed_attempts)
-        # TODO add log
+        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+                               f"Last given input for {input_type}: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
     def check_username(username):
-        username_whitelist = list(string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + ".")
+        username_whitelist = list(
+            string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + ".")
         for row in DBFunctions.get_all_accounts():
             if row[1] == Functions.encrypt(username):
                 print("Username already exists!\n")
@@ -633,7 +657,8 @@ class Functions:
 
     @staticmethod
     def check_string_input(input_list):
-        input_whitelist = list(string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + "." + "@" + "!" + "+" + " ")
+        input_whitelist = list(string.ascii_lowercase + string.ascii_uppercase +
+                               string.digits + "-" + "_" + "'" + "." + "@" + "!" + "+" + " ")
         for input in input_list:
             if len(input) > 50:
                 print("Input must not be longer than 50 characters.\n")
@@ -650,8 +675,10 @@ class Functions:
 
         count = str(len(logData) + 1)
 
-        date = str(date_time_current.day) + "-" + str(date_time_current.month) + "-" + str(date_time_current.year)
-        time = str(date_time_current.hour) + ":" + str(date_time_current.minute) + ":" + str(date_time_current.second)
+        date = str(date_time_current.day) + "-" + \
+            str(date_time_current.month) + "-" + str(date_time_current.year)
+        time = str(date_time_current.hour) + ":" + \
+            str(date_time_current.minute) + ":" + str(date_time_current.second)
 
         with open(logfile, 'r+') as logs:
             logData.append({
@@ -685,19 +712,21 @@ class DBFunctions:
         print(f"\nCreate an account for a new {account_type}.\n")
         username = Functions.input_username("Enter a username")
         password = Functions.input_password("Enter a password")
-        first_name = Functions.input_string("Enter a first name")
-        last_name = Functions.input_string("Enter a last name")
+        first_name = Functions.input_string("first name")
+        last_name = Functions.input_string("last name")
         registration_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         if Functions.check_username(username) and Functions.check_password(password) and Functions.check_string_input([first_name, last_name]):
             cur.execute(
                 "INSERT INTO Accounts (Username, Password, FirstName, LastName, RegistrationDate, Type) VALUES (?, ?, ?, ?, ?, ?);",
                 (
-                    Functions.encrypt(username), Functions.encrypt(password), Functions.encrypt(first_name), Functions.encrypt(last_name),
+                    Functions.encrypt(username), Functions.encrypt(
+                        password), Functions.encrypt(first_name), Functions.encrypt(last_name),
                     registration_date,
                     account_type))
             con.commit()
             print(f"\n{account_type} has been added!\n")
-            Functions.log_activity(current_user[1], f"Added {account_type}", "", "No")
+            Functions.log_activity(
+                current_user[1], f"Added {account_type}", "", "No")
             return True
 
         Functions.log_activity(current_user[1], f"Failed to add {account_type}",
@@ -707,9 +736,9 @@ class DBFunctions:
 
     @staticmethod
     def add_client():
-        full_name = Functions.input_string("Enter a full name")
-        street_name = Functions.input_string("Enter a street name")
-        house_number = Functions.input_string("Enter a house number")
+        full_name = Functions.input_string("full name")
+        street_name = Functions.input_string("street name")
+        house_number = Functions.input_string("house number")
         zip_code = Functions.input_zip_code("Enter a zip code")
         city = ""
         print(
@@ -738,8 +767,9 @@ class DBFunctions:
             city = "Breda"
         elif option == '10':
             city = "Nijmegen"
-        email_address = Functions.input_email("Enter a email address")
-        phone_number = Functions.input_phone_number("Enter a phone number: +31-6-")
+        email_address = Functions.input_email("Enter an email address")
+        phone_number = Functions.input_phone_number(
+            "Enter a phone number: +31-6-")
         if Functions.check_string_input([full_name, street_name, house_number, zip_code, email_address]) and Functions.check_phone_number(
                 phone_number):
             cur.execute(
@@ -758,19 +788,22 @@ class DBFunctions:
     def modify_account(old_username, account_type):
         for row in DBFunctions.get_all_accounts():
             if row[1] == Functions.encrypt(old_username.lower()) and row[6] == account_type:
-                username = Functions.input_username("Enter a (new) username").lower()
-                password = Functions.input_password("Enter a (new) password")
-                first_name = Functions.input_string("Enter a (new) first name")
-                last_name = Functions.input_string("Enter a (new) last name")
+                username = Functions.input_username(
+                    "Enter a username").lower()
+                password = Functions.input_password("Enter a password")
+                first_name = Functions.input_string("first name")
+                last_name = Functions.input_string("last name")
                 if Functions.check_username(username) and Functions.check_password(password) and Functions.check_string_input(
                         [first_name, last_name]):
                     cur.execute(
                         "UPDATE Accounts SET Username = ?, Password = ?, FirstName = ?, LastName = ? WHERE Username = ?;", (
-                            Functions.encrypt(username), Functions.encrypt(password), Functions.encrypt(first_name), Functions.encrypt(last_name),
+                            Functions.encrypt(username), Functions.encrypt(
+                                password), Functions.encrypt(first_name), Functions.encrypt(last_name),
                             Functions.encrypt(old_username)))
                     con.commit()
                     print(f"\n{account_type}'s account has been modified\n")
-                    Functions.log_activity(current_user[1], f"Modified {account_type}", "", "No")
+                    Functions.log_activity(
+                        current_user[1], f"Modified {account_type}", "", "No")
                     return True
                 Functions.log_activity(current_user[1], f"Failed to modify {account_type}",
                                        f"Input by current_user: username = {username}, password = {password}, "
@@ -785,15 +818,15 @@ class DBFunctions:
     def modify_client(old_email, old_phone_number):
         for row in DBFunctions.get_all_clients():
             if row[6] == Functions.encrypt(old_email) and row[7] == Functions.encrypt(old_phone_number):
-                full_name = Functions.input_string("Enter a (new) full name")
-                street_name = Functions.input_string("Enter a (new) street name")
-                house_number = Functions.input_string("Enter a (new) house number")
-                zip_code = Functions.input_zip_code("Enter a (new) zip code")
+                full_name = Functions.input_string("full name")
+                street_name = Functions.input_string("street name")
+                house_number = Functions.input_string("house number")
+                zip_code = Functions.input_zip_code("Enter a zip code")
                 city = ""
                 print(
                     "-----------------------------------\n1. Rotterdam\n2. Amsterdam\n3. Den Haag\n4. Utrecht\n5. Eindhoven\n6. Tilburg\n7. "
                     "Groningen\n8.Almere\n9. Breda\n10. Nijmegen\n")
-                option = input("Choose a (new) city: ")
+                option = input("Choose a city: ")
                 while option not in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']:
                     option = input("Choose a city: ")
                 if option == '1':
@@ -816,19 +849,23 @@ class DBFunctions:
                     city = "Breda"
                 elif option == '10':
                     city = "Nijmegen"
-                email_address = Functions.input_email("Enter a (new) email address")
-                phone_number = Functions.input_phone_number("Enter a (new) phone number: +31-6-")
+                email_address = Functions.input_email(
+                    "Enter an email address")
+                phone_number = Functions.input_phone_number(
+                    "Enter a phone number: +31-6-")
                 if Functions.check_string_input([full_name, street_name, house_number, zip_code, email_address]) and Functions.check_phone_number(
                         phone_number):
                     cur.execute(
                         "UPDATE Clients SET FullName = ?, StreetName = ?, HouseNumber = ?, ZipCode = ?, "
                         "City = ?, EmailAddress = ?, PhoneNumber = ? WHERE EmailAddress = ? AND PhoneNumber = ?;",
                         (Functions.encrypt(full_name), Functions.encrypt(street_name), Functions.encrypt(house_number), Functions.encrypt(zip_code),
-                         Functions.encrypt(city), Functions.encrypt(email_address), Functions.encrypt('+31-6-' + phone_number),
+                         Functions.encrypt(city), Functions.encrypt(
+                             email_address), Functions.encrypt('+31-6-' + phone_number),
                          Functions.encrypt(old_email), Functions.encrypt(old_phone_number)))
                     con.commit()
                     print("Client has been modified!")
-                    Functions.log_activity(current_user[1], "Modified Client", "", "No")
+                    Functions.log_activity(
+                        current_user[1], "Modified Client", "", "No")
                     return True
                 else:
                     Functions.log_activity(current_user[1], "Failed to modify Client",
@@ -838,17 +875,20 @@ class DBFunctions:
             else:
                 Functions.log_activity(current_user[1], "Failed to modify Client",
                                        f"Input by current_user: old email address: {old_email}, old phone number: {old_phone_number}", "Yes")
-                print("No client can be found with the given email address and/or phone number!\n")
+                print(
+                    "No client can be found with the given email address and/or phone number!\n")
                 return False
 
     @staticmethod
     def delete_account(username, account_type):
         for row in DBFunctions.get_all_accounts():
             if row[1] == Functions.encrypt(username.lower()) and row[6] == account_type:
-                cur.execute("DELETE FROM Accounts WHERE Username = ?;", (Functions.encrypt(username.lower)))
+                cur.execute("DELETE FROM Accounts WHERE Username = ?;",
+                            (Functions.encrypt(username.lower)))
                 con.commit()
                 print(f"\n{account_type}'s account has been deleted!\n")
-                Functions.log_activity(current_user[1], f"Deleted {account_type}", f"User {username} is deleted", "No")
+                Functions.log_activity(
+                    current_user[1], f"Deleted {account_type}", f"User {username} is deleted", "No")
                 return True
         print(f"\nNo {account_type} can be found with the given username!\n")
         Functions.log_activity(current_user[1], f"Failed to delete {account_type}",
@@ -863,7 +903,8 @@ class DBFunctions:
                             (Functions.encrypt(email), Functions.encrypt(phone_number)))
                 con.commit()
                 print("\nClient has been deleted!\n")
-                Functions.log_activity(current_user[1], "Deleted Client", f"email:{email}, phone_number:{phone_number}", "No")
+                Functions.log_activity(
+                    current_user[1], "Deleted Client", f"email:{email}, phone_number:{phone_number}", "No")
                 return True
         print("\nNo client can be found with the given email and/or phone number!\n")
         Functions.log_activity(current_user[1], "Failed to delete client",
@@ -878,10 +919,12 @@ class DBFunctions:
                 "UPDATE Accounts SET Password = ? WHERE Username = ?;", (Functions.encrypt(new_password), Functions.encrypt(current_user[1])))
             con.commit()
             print("\nYour password has been changed!\n")
-            Functions.log_activity(current_user[1], "Updated Password", "", "No")
+            Functions.log_activity(
+                current_user[1], "Updated Password", "", "No")
             return True
         else:
-            Functions.log_activity(current_user[1], "Failed to Update Password", f"New password did not meet the criteria: {new_password}", "Yes")
+            Functions.log_activity(current_user[1], "Failed to Update Password",
+                                   f"New password did not meet the criteria: {new_password}", "Yes")
             return False
 
     @staticmethod
