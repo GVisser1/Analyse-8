@@ -19,30 +19,29 @@ with open(logfile, 'r') as logs:
 
 def sign_in():
     global current_user
-    username = input("Enter your username: ").lower()
-    password = input("Enter your password: ")
     allAccounts = DBFunctions.get_all_accounts()
-    i = 0
     attempts = 0
-    while i < len(allAccounts):
-        if username != Functions.decrypt(allAccounts[i][1]) or password != Functions.decrypt(allAccounts[i][2]):
-            attempts += 1
-            print("\nUsername and/or password is incorrect\n")
-            username = input("Enter your username: ").lower()
-            password = input("Enter your password: ")
-        else:
-            print("\nSigned in successfully\n")
-            current_user = allAccounts[i]
-            Functions.log_activity(current_user[1], "Logged in", "", "No")
-            check_access_level()
-        if attempts >= 3:
-            Functions.log_activity(f"{Functions.decrypt('undefined')} ", "Exceeded the maximum amount of sign in attempts",
-                                   f"Password: {password} is tried in combination with Username: {username}", "Yes")
-            lock_out_user()
+    while attempts <= 3:
+        username = input("Enter your username: ").lower()
+        password = input("Enter your password: ")
+        for account in allAccounts:
+            if username == Functions.decrypt(account[1]) and password == Functions.decrypt(account[2]):
+                print("\nSigned in successfully\n")
+                current_user = account
+                Functions.log_activity(current_user[1], "Logged in", "", "No")
+                check_access_level()
+        attempts += 1
+        print("\nUsername and/or password is incorrect\n")
+    Functions.log_activity(f"{Functions.decrypt('undefined')} ", "Exceeded the maximum amount of sign in attempts",
+                           f"Password: {password} is tried in combination with Username: {username}", "Yes")
+    lock_out_user()
+
+
+def checkAccount(): return
 
 
 def lock_out_user():
-    print("\nToo many failed attempts!\nYou are now locked out of the system\nPress 'q' to quit\n")
+    print("\nToo many failed attempts!\nYou are now locked out of the system\n\nPress 'q' to quit\n")
     option = input(choice_input)
     while option != 'q':
         option = input(choice_input)
@@ -137,7 +136,7 @@ class Adviser:
     @staticmethod
     def update_password():
         while True:
-            old_password = input("Enter your old password: ")
+            old_password = input("\nEnter your old password: ")
             if Functions.encrypt(old_password) == current_user[2]:
                 if DBFunctions.update_password():
                     break
@@ -506,7 +505,7 @@ class Functions:
         return decrypted
 
     @staticmethod
-    def input_username(input_message):
+    def input_username(input_message, input_event):
         attempts = 0
         while attempts <= 3:
             input_value = input(f"{input_message}: ")
@@ -515,12 +514,12 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+        Functions.log_activity(current_user[1], f"Exceeded the maximum amount of attempts when {input_event}",
                                f"Last given input for username: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
-    def input_password(input_message):
+    def input_password(input_message, input_event):
         attempts = 0
         while attempts <= 3:
             input_value = input(f"{input_message}: ")
@@ -529,12 +528,12 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+        Functions.log_activity(current_user[1], f"Exceeded the maximum amount of attempts when {input_event}",
                                f"Last given input for password: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
-    def input_email(input_message):
+    def input_email(input_message, input_event):
         attempts = 0
         while attempts <= 3:
             input_value = input(f"{input_message}: ")
@@ -543,12 +542,12 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+        Functions.log_activity(current_user[1], f"Exceeded the maximum amount of attempts when {input_event}",
                                f"Last given input for email: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
-    def input_zip_code(input_message):
+    def input_zip_code(input_message, input_event):
         attempts = 0
         while attempts <= 3:
             input_value = input(f"{input_message}: ")
@@ -557,12 +556,12 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+        Functions.log_activity(current_user[1], f"Exceeded the maximum amount of attempts when {input_event}",
                                f"Last given input for zip code: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
-    def input_phone_number(input_message):
+    def input_phone_number(input_message, input_event):
         attempts = 0
         while attempts <= 3:
             input_value = input(f"{input_message}")
@@ -571,12 +570,12 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+        Functions.log_activity(current_user[1], f"Exceeded the maximum amount of attempts when {input_event}",
                                f"Last given input for phone number: {input_value}", "Yes")
         return_to_menu()
 
     @staticmethod
-    def input_string(input_type):
+    def input_string(input_type, input_event):
         attempts = 0
         while attempts <= 3:
             input_value = input(f"Enter a {input_type}: ")
@@ -585,7 +584,7 @@ class Functions:
             else:
                 attempts += 1
         print(max_failed_attempts)
-        Functions.log_activity(current_user[1], "Exceeded the maximum amount of attempts",
+        Functions.log_activity(current_user[1], f"Exceeded the maximum amount of attempts when {input_event}",
                                f"Last given input for {input_type}: {input_value}", "Yes")
         return_to_menu()
 
@@ -595,24 +594,24 @@ class Functions:
             string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_" + "'" + ".")
         for row in DBFunctions.get_all_accounts():
             if row[1] == Functions.encrypt(username):
-                print("Username already exists!\n")
+                print("\nUsername already exists!\n")
                 return False
         if not username[0].isupper() and not username.islower():
-            print("Username must start with a letter.\n")
+            print("\nUsername must start with a letter.\n")
             return False
         if len(username) < 5 or len(username) > 20:
-            print("Username must have a length of at least 5 characters and must be no longer than 20 characters.\n")
+            print("\nUsername must have a length of at least 5 characters and must be no longer than 20 characters.\n")
             return False
         for i in username:
             if i not in username_whitelist:
-                print("Username contains invalid characters.\n")
+                print("\nUsername contains invalid characters.\n")
                 return False
         return True
 
     @staticmethod
     def check_password(password):
         if len(password) < 8 or len(password) > 30:
-            print("Password must have a length of at least 8 characters and must be no longer than 30 characters.\n")
+            print("\nPassword must have a length of at least 8 characters and must be no longer than 30 characters.\n")
             return False
         checklist = [False, False, False, False]
         for i in password:
@@ -625,36 +624,36 @@ class Functions:
             else:
                 checklist[3] = True
         if False in checklist:
-            print("Password must contain at least one lowercase letter, one uppercase letter, one digit, and one special character.\n")
+            print("\nPassword must contain at least one lowercase letter, one uppercase letter, one digit, and one special character.\n")
             return False
         return True
 
     @staticmethod
     def check_phone_number(phone_number):
         if len(phone_number) != 8:
-            print('Phone number is out of range.\n')
+            print("\nPhone number is out of range.\n")
             return False
         try:
             int(phone_number)
             return True
         except ValueError:
-            print("Phone number is not an integer. It's a string\n")
+            print("\nPhone number is not an integer. It's a string\n")
             return False
 
     @staticmethod
     def check_email(email):
         if len(email) > 50:
-            print("Email must not be longer than 50 characters.\n")
+            print("\nEmail must not be longer than 50 characters.\n")
             return False
         if not re.match("(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email):
-            print("Email is invalid\n")
+            print("\nEmail is invalid\n")
             return False
         return True
 
     @staticmethod
     def check_zip_code(zip_code):
         if not re.match("(^[0-9]{4}[A-Z]{2}$)", zip_code):
-            print("Zip code is invalid\n")
+            print("\nZip code is invalid\nCorrect format: 1234AB")
             return False
         return True
 
@@ -664,11 +663,11 @@ class Functions:
                                string.digits + "-" + "_" + "'" + "." + "@" + "!" + "+" + " ")
         for input in input_list:
             if len(input) > 50:
-                print("Input must not be longer than 50 characters.\n")
+                print("\nInput must not be longer than 50 characters.\n")
                 return False
             for i in input:
                 if i not in input_whitelist:
-                    print("Input contains invalid characters.\n")
+                    print("\nInput contains invalid characters.\n")
                     return False
             return True
 
@@ -713,10 +712,12 @@ class DBFunctions:
     @staticmethod
     def add_account(account_type):
         print(f"\nCreate an account for a new {account_type}.\n")
-        username = Functions.input_username("Enter a username")
-        password = Functions.input_password("Enter a password")
-        first_name = Functions.input_string("first name")
-        last_name = Functions.input_string("last name")
+        username = Functions.input_username(
+            "Enter a username", "adding an account")
+        password = Functions.input_password(
+            "Enter a password", "adding an account")
+        first_name = Functions.input_string("first name", "adding an account")
+        last_name = Functions.input_string("last name", "adding an account")
         registration_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         if Functions.check_username(username) and Functions.check_password(password) and Functions.check_string_input([first_name, last_name]):
             cur.execute(
@@ -732,17 +733,14 @@ class DBFunctions:
                 current_user[1], f"Added {account_type}", "", "No")
             return True
 
-        Functions.log_activity(current_user[1], f"Failed to add {account_type}",
-                               f"Input by current_user: username={username}, password={password}, first name={first_name}, last name={last_name}",
-                               "Yes")
-        return False
-
     @staticmethod
     def add_client():
-        full_name = Functions.input_string("full name")
-        street_name = Functions.input_string("street name")
-        house_number = Functions.input_string("house number")
-        zip_code = Functions.input_zip_code("Enter a zip code")
+        full_name = Functions.input_string("full name", "adding a client")
+        street_name = Functions.input_string("street name", "adding a client")
+        house_number = Functions.input_string(
+            "house number", "adding a client")
+        zip_code = Functions.input_zip_code(
+            "Enter a zip code", "adding a client")
         city = ""
         print(
             "-----------------------------------\n1. Rotterdam\n2. Amsterdam\n3. Den Haag\n4. Utrecht\n5. Eindhoven\n6. Tilburg\n7. Groningen\n8. "
@@ -770,9 +768,10 @@ class DBFunctions:
             city = "Breda"
         elif option == '10':
             city = "Nijmegen"
-        email_address = Functions.input_email("Enter an email address")
+        email_address = Functions.input_email(
+            "Enter an email address", "adding a client")
         phone_number = Functions.input_phone_number(
-            "Enter a phone number: +31-6-")
+            "Enter a phone number: +31-6-", "adding a client")
         if Functions.check_string_input([full_name, street_name, house_number, zip_code, email_address]) and Functions.check_phone_number(
                 phone_number):
             cur.execute(
@@ -782,20 +781,19 @@ class DBFunctions:
             con.commit()
             Functions.log_activity(current_user[1], "Added Client", "", "No")
             return True
-        Functions.log_activity(current_user[1], "Failed to add Client",
-                               f"Input by current_user: full name: {full_name}, street name & house number: {street_name} {house_number}, "
-                               f"zip code: {zip_code}, email address: {email_address}, phone number: {phone_number}", "Yes")
-        return False
 
     @staticmethod
     def modify_account(old_username, account_type):
         for row in DBFunctions.get_all_accounts():
             if row[1] == Functions.encrypt(old_username.lower()) and row[6] == account_type:
                 username = Functions.input_username(
-                    "Enter a username").lower()
-                password = Functions.input_password("Enter a password")
-                first_name = Functions.input_string("first name")
-                last_name = Functions.input_string("last name")
+                    "Enter a username", "modifying an account").lower()
+                password = Functions.input_password(
+                    "Enter a password", "modifying an account")
+                first_name = Functions.input_string(
+                    "first name", "modifying an account")
+                last_name = Functions.input_string(
+                    "last name", "modifying an account")
                 if Functions.check_username(username) and Functions.check_password(password) and Functions.check_string_input(
                         [first_name, last_name]):
                     cur.execute(
@@ -808,23 +806,19 @@ class DBFunctions:
                     Functions.log_activity(
                         current_user[1], f"Modified {account_type}", "", "No")
                     return True
-                Functions.log_activity(current_user[1], f"Failed to modify {account_type}",
-                                       f"Input by current_user: username = {username}, password = {password}, "
-                                       f"first name = {first_name}, last name = {last_name}", "Yes")
-                return False
-        Functions.log_activity(current_user[1], "Failed to modify account",
-                               f"Input by current_user: old username= {old_username}", "Yes")
-        print(f"No {account_type} can be found with the given username!\n")
-        return False
 
     @staticmethod
     def modify_client(old_email, old_phone_number):
         for row in DBFunctions.get_all_clients():
             if row[6] == Functions.encrypt(old_email) and row[7] == Functions.encrypt(old_phone_number):
-                full_name = Functions.input_string("full name")
-                street_name = Functions.input_string("street name")
-                house_number = Functions.input_string("house number")
-                zip_code = Functions.input_zip_code("Enter a zip code")
+                full_name = Functions.input_string(
+                    "full name", "modifying a client")
+                street_name = Functions.input_string(
+                    "street name", "modifying a client")
+                house_number = Functions.input_string(
+                    "house number", "modifying a client")
+                zip_code = Functions.input_zip_code(
+                    "Enter a zip code", "modifying a client")
                 city = ""
                 print(
                     "-----------------------------------\n1. Rotterdam\n2. Amsterdam\n3. Den Haag\n4. Utrecht\n5. Eindhoven\n6. Tilburg\n7. "
@@ -853,9 +847,9 @@ class DBFunctions:
                 elif option == '10':
                     city = "Nijmegen"
                 email_address = Functions.input_email(
-                    "Enter an email address")
+                    "Enter an email address", "modifying a client")
                 phone_number = Functions.input_phone_number(
-                    "Enter a phone number: +31-6-")
+                    "Enter a phone number: +31-6-", "modifying a client")
                 if Functions.check_string_input([full_name, street_name, house_number, zip_code, email_address]) and Functions.check_phone_number(
                         phone_number):
                     cur.execute(
@@ -870,14 +864,9 @@ class DBFunctions:
                     Functions.log_activity(
                         current_user[1], "Modified Client", "", "No")
                     return True
-                else:
-                    Functions.log_activity(current_user[1], "Failed to modify Client",
-                                           f"Input by current_user: full name: {full_name}, street name & house number: {street_name} {house_number}, "
-                                           f"zip code: {zip_code}, email address: {email_address}, phone number: {phone_number}", "Yes")
-                    return False
             else:
                 Functions.log_activity(current_user[1], "Failed to modify Client",
-                                       f"Input by current_user: old email address: {old_email}, old phone number: {old_phone_number}", "Yes")
+                                       f"Input by current_user: old email address: {old_email}, old phone number: {old_phone_number}", "No")
                 print(
                     "No client can be found with the given email address and/or phone number!\n")
                 return False
@@ -895,7 +884,7 @@ class DBFunctions:
                 return True
         print(f"\nNo {account_type} can be found with the given username!\n")
         Functions.log_activity(current_user[1], f"Failed to delete {account_type}",
-                               f"User not found with data: username={username}, account_type={account_type}", "Yes")
+                               f"User not found with data: username={username}, account_type={account_type}", "No")
         return False
 
     @staticmethod
@@ -911,12 +900,13 @@ class DBFunctions:
                 return True
         print("\nNo client can be found with the given email and/or phone number!\n")
         Functions.log_activity(current_user[1], "Failed to delete client",
-                               f"No client can be found with email={email} and phone number={phone_number}", "Yes")
+                               f"No client can be found with email={email} and phone number={phone_number}", "No")
         return False
 
     @staticmethod
     def update_password():
-        new_password = Functions.input_password("Enter your new password: ")
+        new_password = Functions.input_password(
+            "Enter your new password", "entering a new password")
         if Functions.check_password(new_password):
             cur.execute(
                 "UPDATE Accounts SET Password = ? WHERE Username = ?;", (Functions.encrypt(new_password), Functions.encrypt(current_user[1])))
@@ -925,18 +915,11 @@ class DBFunctions:
             Functions.log_activity(
                 current_user[1], "Updated Password", "", "No")
             return True
-        else:
-            Functions.log_activity(current_user[1], "Failed to Update Password",
-                                   f"New password did not meet the criteria: {new_password}", "Yes")
-            return False
 
     @staticmethod
     def reset_password(username, account_type):
-        new_password = Functions.input_password("Enter a new password: ")
-        if not Functions.check_password(new_password):
-            Functions.log_activity(current_user[1], f"Failed to reset password",
-                                   f"User not found with data: username={username}, account_type={account_type}", "Yes")
-            return False
+        new_password = Functions.input_password(
+            "Enter a new password", "resetting a password")
         for row in DBFunctions.get_all_accounts():
             if row[1] == Functions.encrypt(username.lower()) and row[6] == account_type:
                 cur.execute(
@@ -948,7 +931,7 @@ class DBFunctions:
                 return True
         print(f"No {account_type.lower()} can be found with the given username!")
         Functions.log_activity(current_user[1], f"Failed to reset password",
-                               f"User not found with data: username={username}, account_type={account_type}", "Yes")
+                               f"User not found with data: username={username}, account_type={account_type}", "No")
         return False
 
 
